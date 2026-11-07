@@ -1,0 +1,16 @@
+{
+  "name": "amma-samayal-backend",
+  "version": "0.1.0",
+  "description": "Amma Samayal veetu tiffin app backend API",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.0.0",
+    "cors": "^2.8.5",
+    "express": "^4.19.2"
+  }
+}
