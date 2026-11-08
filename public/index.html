@@ -5,12 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Amma Samayal</title>
 <style>
-  :root{--bg:#fff7ed;--card:#fff;--ink:#1f2937;--muted:#6b7280;--brand:#e4572e;--brand-dark:#c2410c;--accent:#16a34a;--soft:#fde4d8;--line:#f1e4da;--blue:#2563eb;--red:#dc2626;--gold:#f59e0b}
+  :root{--bg:#f3f8f4;--card:#fff;--ink:#17241c;--muted:#6b7280;--brand:#17794a;--brand-dark:#0e4f30;--accent:#16a34a;--soft:#d9f0e4;--line:#e5efe9;--blue:#2563eb;--red:#dc2626;--gold:#dd9a05}
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-  body{font-family:"Segoe UI",system-ui,"Noto Sans Tamil",Roboto,sans-serif;background:#d7cdbf;color:var(--ink);display:flex;flex-direction:column;align-items:center;padding-bottom:30px}
+  body{font-family:"Segoe UI",system-ui,"Noto Sans Tamil",Roboto,sans-serif;background:#0e2a1d;color:var(--ink);display:flex;flex-direction:column;align-items:center;padding-bottom:30px}
   /* login */
-  .login{position:fixed;inset:0;background:linear-gradient(150deg,var(--brand),var(--brand-dark));z-index:90;display:flex;align-items:center;justify-content:center;padding:24px;overflow:auto}
-  .login-inner{width:100%;max-width:360px;text-align:center;color:#fff}
+  .login{position:fixed;inset:0;background:radial-gradient(120% 120% at 50% 0%,#1d7a4e 0%,#0f5131 45%,#072e1c 100%);z-index:90;display:flex;align-items:center;justify-content:center;padding:24px;overflow:hidden}
+  .food-bg{position:absolute;inset:-20% -10%;font-size:40px;line-height:2;letter-spacing:16px;color:#fff;opacity:.06;pointer-events:none;overflow:hidden;transform:rotate(-13deg) scale(1.25);z-index:0;user-select:none;word-break:break-word}
+  .login-inner{width:100%;max-width:360px;text-align:center;color:#fff;position:relative;z-index:1}
+  .login .logo{box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .login h1{letter-spacing:.3px}
+  .login .brand-tag{display:inline-block;margin-top:6px;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--gold);opacity:.95}
   .login .logo{width:80px;height:80px;border-radius:22px;background:#fff;display:grid;place-items:center;font-size:42px;margin:0 auto 14px}
   .login h1{font-size:26px;font-weight:800}
   .login>.login-inner>p{opacity:.9;font-size:14px;margin:4px 0 16px}
@@ -18,7 +22,7 @@
   .lang-row span{cursor:pointer;font-weight:700;padding:4px 8px;text-decoration:underline}
   .rolebtn{width:100%;background:#fff;color:var(--ink);border:none;border-radius:14px;padding:15px;margin-bottom:12px;cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;gap:2px;font-size:16px;font-weight:800;text-align:left}
   .rolebtn small{font-size:12px;font-weight:600;color:var(--muted)}
-  .rolebtn.solid{align-items:center;background:#111827;color:#fff;flex-direction:row;justify-content:center;gap:8px}
+  .rolebtn.solid{align-items:center;background:linear-gradient(135deg,#f0b429,#dd9a05);color:#3a2900;flex-direction:row;justify-content:center;gap:8px;box-shadow:0 8px 22px rgba(221,154,5,.35)}
   .login input{width:100%;border:none;border-radius:12px;padding:14px;font-size:15px;margin-bottom:12px;font-family:inherit}
   .login .lk{background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:10px;padding:8px 13px;font-size:18px;cursor:pointer;margin-bottom:14px}
   .login .hint{font-size:12px;opacity:.85;margin:2px 0 12px}
@@ -32,7 +36,7 @@
   .phone{width:100%;max-width:460px;background:var(--bg);min-height:72vh;position:relative;overflow:hidden}
   .wrap{padding:14px 14px 20px}
   .top{background:linear-gradient(135deg,var(--brand),var(--brand-dark));color:#fff;padding:14px 16px 16px}
-  .top.cook{background:linear-gradient(135deg,#16a34a,#15803d)}
+  .top.cook{background:linear-gradient(135deg,#0d9488,#0f766e)}
   .top.admin{background:linear-gradient(135deg,#1f2937,#374151)}
   .top h1{font-size:17px;font-weight:800}.top .sub{font-size:12px;opacity:.9;margin-top:2px}
   .sec-title{font-size:15px;font-weight:800;margin:6px 2px 12px}
@@ -94,9 +98,11 @@
 <body>
   <!-- LOGIN -->
   <div class="login" id="loginScreen">
+    <div class="food-bg">🍲 🍛 🥘 🍚 🫓 🥗 🍜 🍳 🥙 🍲 🍛 🥘 🍚 🫓 🥗 🍜 🍳 🥙 🍲 🍛 🥘 🍚 🫓 🥗 🍜 🍳 🥙 🍲 🍛 🥘 🍚 🫓 🥗 🍜 🍳 🥙 🍲 🍛 🥘 🍚 🫓 🥗 🍜 🍳 🥙 🍲 🍛 🥘 🍚 🫓 🥗 🍜 🍳 🥙 🍲 🍛 🥘 🍚 🫓 🥗 🍜 🍳 🥙 🍲 🍛 🥘 🍚 🫓 🥗 🍜 🍳 🥙 🍲 🍛 🥘 🍚 🫓 🥗 🍜 🍳 🥙 🍲 🍛 🥘 🍚 🫓 🥗 🍜 🍳 🥙 🍲 🍛 🥘 🍚 🫓 🥗 🍜 🍳 🥙</div>
     <div class="login-inner">
       <div class="logo">🍲</div>
       <h1>Amma Samayal</h1>
+      <div class="brand-tag">Veettu Samayal · Veettu Ruchi</div>
       <p id="login-sub">Naan yaaru?</p>
       <div class="lang-row">மொழி: <span onclick="setLoginLang('ta')">தமிழ்</span> | <span onclick="setLoginLang('en')">English</span></div>
       <div id="roleChoice">
@@ -133,6 +139,10 @@ let CURRENT=null;
 let CUST_PENDING=null;
 let confirmationResult=null;
 let recaptchaVerifier=null;
+/* ---- session persistence (one-time login) ---- */
+function saveSession(s){try{localStorage.setItem('amma_session',JSON.stringify(s));}catch(e){}}
+function clearSession(){try{localStorage.removeItem('amma_session');}catch(e){}}
+function getSession(){try{return JSON.parse(localStorage.getItem('amma_session')||'null');}catch(e){return null;}}
 async function api(path, opts={}){
   const headers={};
   if(opts.body) headers['Content-Type']='application/json';
@@ -237,13 +247,15 @@ function verifyRealOtp(){
   if(!confirmationResult){toast('Send OTP first');return;}
   if(code.length<6){toast(lang==='ta'?'6 இலக்க OTP':'Enter 6-digit OTP');return;}
   confirmationResult.confirm(code).then(()=>{
-    CUST_PHONE='cust-'+CUST_PENDING.phone;CURRENT={role:'cust',name:CUST_PENDING.name};enter('cust','👤 '+CUST_PENDING.name);
+    CUST_PHONE='cust-'+CUST_PENDING.phone;CURRENT={role:'cust',name:CUST_PENDING.name};
+    saveSession({role:'cust',phone:CUST_PENDING.phone,name:CUST_PENDING.name});
+    enter('cust','👤 '+CUST_PENDING.name);
   }).catch(e=>{toast(lang==='ta'?'தவறான OTP':'Wrong OTP');});
 }
-function doCook(id,name){LOGGED_COOK=id;CURRENT={role:'cook',name};enter('cook','👩‍🍳 '+name);}
+function doCook(id,name){LOGGED_COOK=id;CURRENT={role:'cook',name};saveSession({role:'cook',cookId:id,name});enter('cook','👩‍🍳 '+name);}
 function doAdmin(){const p=(document.getElementById('li-pass').value||'').trim();if(p!=='1234'){toast(lang==='ta'?'தவறான கடவுச்சொல்':'Wrong passcode');return;}CURRENT={role:'admin',name:'Owner'};enter('admin','🛠️ Owner');}
 function enter(r,label){role=r;document.getElementById('loginScreen').classList.add('hide');document.getElementById('appbar').classList.remove('hide');document.getElementById('liveban').classList.remove('hide');document.getElementById('phoneWrap').classList.remove('hide');document.getElementById('ab-role').textContent=label;document.getElementById('lgl').textContent=lang.toUpperCase();document.getElementById('ab-logout').textContent=t('logout');document.getElementById('lbl-live').textContent=t('liveb');render();}
-function logout(){CURRENT=null;LOGGED_COOK=null;CUST_PHONE=null;closeSheet();document.getElementById('appbar').classList.add('hide');document.getElementById('liveban').classList.add('hide');document.getElementById('phoneWrap').classList.add('hide');document.getElementById('loginScreen').classList.remove('hide');backRole();}
+function logout(){clearSession();CURRENT=null;LOGGED_COOK=null;CUST_PHONE=null;closeSheet();document.getElementById('appbar').classList.add('hide');document.getElementById('liveban').classList.add('hide');document.getElementById('phoneWrap').classList.add('hide');document.getElementById('loginScreen').classList.remove('hide');backRole();}
 
 function custStage(o){return o.status==='new'?1:o.status==='cooking'?2:o.status==='out'?3:o.status==='delivered'?4:0;}
 let role='cust';
@@ -450,6 +462,10 @@ document.getElementById('sheet').addEventListener('click',e=>{if(e.target.id==='
 
 function initLogin(){
   applyLoginLabels();
+  // One-time login: if a saved session exists, go straight into the app (no OTP again)
+  const s=getSession();
+  if(s&&s.role==='cust'&&s.phone){CUST_PHONE='cust-'+s.phone;CURRENT={role:'cust',name:s.name};enter('cust','👤 '+(s.name||'Customer'));return;}
+  if(s&&s.role==='cook'&&s.cookId){LOGGED_COOK=s.cookId;CURRENT={role:'cook',name:s.name};enter('cook','👩‍🍳 '+(s.name||'Cook'));return;}
   // Owner/admin login is HIDDEN from normal users. It appears only when the URL ends with #owner
   if(location.hash==='#owner'||location.hash==='#admin'){
     document.getElementById('login-sub').textContent = lang==='ta'?'உரிமையாளர் உள்நுழைவு 🛠️':'Owner login 🛠️';
