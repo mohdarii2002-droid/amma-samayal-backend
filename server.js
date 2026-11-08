@@ -20,7 +20,7 @@ const h = (fn) => (req, res) => {
 // ---------- COOKS ----------
 // List approved cooks (customer app home)
 app.get('/api/cooks', h((req, res) => {
-  const cooks = db.prepare('SELECT id, name, area, veg, rating FROM cooks WHERE approved = 1').all();
+  const cooks = db.prepare('SELECT id, name, area, veg, rating, phone, address, lat, lng FROM cooks WHERE approved = 1').all();
   res.json(cooks);
 }));
 
@@ -57,10 +57,10 @@ app.delete('/api/menu/:id', h((req, res) => {
 // ---------- ORDERS ----------
 // Customer places an order
 app.post('/api/orders', h((req, res) => {
-  const { cookId, customerName = 'Customer', customerPhone = '', items, total, plan = 'One day' } = req.body;
+  const { cookId, customerName = 'Customer', customerPhone = '', customerAddress = '', customerLat = null, customerLng = null, items, total, plan = 'One day' } = req.body;
   if (!cookId || !items || !total) return res.status(400).json({ error: 'cookId, items, total required' });
-  const info = db.prepare('INSERT INTO orders (cook_id, customer_name, customer_phone, items_json, total, plan) VALUES (?,?,?,?,?,?)')
-                 .run(cookId, customerName, customerPhone, JSON.stringify(items), total, plan);
+  const info = db.prepare('INSERT INTO orders (cook_id, customer_name, customer_phone, customer_address, customer_lat, customer_lng, items_json, total, plan) VALUES (?,?,?,?,?,?,?,?,?)')
+                 .run(cookId, customerName, customerPhone, customerAddress, customerLat, customerLng, JSON.stringify(items), total, plan);
   res.status(201).json({ id: info.lastInsertRowid, status: 'new' });
 }));
 
@@ -69,24 +69,34 @@ app.get('/api/orders', h((req, res) => {
   let rows;
   if (req.query.cookId) rows = db.prepare('SELECT * FROM orders WHERE cook_id = ? ORDER BY id DESC').all(req.query.cookId);
   else if (req.query.customerPhone) rows = db.prepare('SELECT * FROM orders WHERE customer_phone = ? ORDER BY id DESC').all(req.query.customerPhone);
+  else if (req.query.available) rows = db.prepare("SELECT * FROM orders WHERE status = 'ready' AND (rider_phone IS NULL OR rider_phone = '') ORDER BY id ASC").all();
+  else if (req.query.riderPhone) rows = db.prepare("SELECT * FROM orders WHERE rider_phone = ? AND status IN ('assigned','out','arrived') ORDER BY id ASC").all(req.query.riderPhone);
   else rows = db.prepare('SELECT * FROM orders ORDER BY id DESC').all();
   res.json(rows.map(r => ({ ...r, items: JSON.parse(r.items_json) })));
 }));
 
-// Cook updates status: new -> cooking -> out -> delivered (assigns a rider on 'out')
+// Status flow: new -> cooking -> ready -> assigned -> out -> arrived -> delivered (rejected)
+// Cook sets: cooking, ready, rejected.  Delivery sets: out, arrived.  Customer sets: delivered.
 app.patch('/api/orders/:id/status', h((req, res) => {
-  const { status } = req.body; // cooking | out | delivered | rejected
+  const { status } = req.body;
   const o = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
   if (!o) return res.status(404).json({ error: 'not found' });
   if (o.locked) return res.status(409).json({ error: 'order locked by admin' });
-  if (status === 'out') {
-    const riders = [['Murugan', '+919000011111'], ['Karthik', '+919000022222']];
-    const r = riders[Math.floor(Math.random() * riders.length)];
-    db.prepare('UPDATE orders SET status=?, rider_name=?, rider_phone=? WHERE id=?').run(status, r[0], r[1], req.params.id);
-  } else {
-    db.prepare('UPDATE orders SET status=? WHERE id=?').run(status, req.params.id);
-  }
+  db.prepare('UPDATE orders SET status=? WHERE id=?').run(status, req.params.id);
   res.json({ ok: true, status });
+}));
+
+// Delivery partner accepts a ready order (assigns themselves). 409 if already taken.
+app.patch('/api/orders/:id/accept-delivery', h((req, res) => {
+  const { riderName, riderPhone } = req.body;
+  if (!riderName || !riderPhone) return res.status(400).json({ error: 'riderName and riderPhone required' });
+  const o = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
+  if (!o) return res.status(404).json({ error: 'not found' });
+  if (o.status !== 'ready' || (o.rider_phone && o.rider_phone !== '')) {
+    return res.status(409).json({ error: 'already taken' });
+  }
+  db.prepare("UPDATE orders SET rider_name=?, rider_phone=?, status='assigned' WHERE id=?").run(riderName, riderPhone, req.params.id);
+  res.json({ ok: true, status: 'assigned' });
 }));
 
 // Customer rates a delivered order

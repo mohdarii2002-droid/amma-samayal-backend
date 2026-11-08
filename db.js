@@ -13,6 +13,9 @@ CREATE TABLE IF NOT EXISTS cooks (
   veg INTEGER DEFAULT 1,
   rating REAL DEFAULT 0,
   approved INTEGER DEFAULT 0,
+  address TEXT,
+  lat REAL,
+  lng REAL,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 CREATE TABLE IF NOT EXISTS menu_items (
@@ -30,6 +33,9 @@ CREATE TABLE IF NOT EXISTS orders (
   cook_id INTEGER NOT NULL,
   customer_name TEXT,
   customer_phone TEXT,
+  customer_address TEXT,
+  customer_lat REAL,
+  customer_lng REAL,
   items_json TEXT NOT NULL,
   total INTEGER NOT NULL,
   plan TEXT,
@@ -45,17 +51,29 @@ CREATE TABLE IF NOT EXISTS orders (
 CREATE INDEX IF NOT EXISTS idx_menu_cook ON menu_items(cook_id);
 CREATE INDEX IF NOT EXISTS idx_orders_cook ON orders(cook_id);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
+CREATE INDEX IF NOT EXISTS idx_orders_rider ON orders(rider_phone);
 `);
+
+// --- migrations for older databases (ignore error if column already exists) ---
+const addCol = (sql) => { try { db.exec(sql); } catch (e) { /* column exists */ } };
+addCol('ALTER TABLE cooks ADD COLUMN address TEXT');
+addCol('ALTER TABLE cooks ADD COLUMN lat REAL');
+addCol('ALTER TABLE cooks ADD COLUMN lng REAL');
+addCol('ALTER TABLE orders ADD COLUMN customer_address TEXT');
+addCol('ALTER TABLE orders ADD COLUMN customer_lat REAL');
+addCol('ALTER TABLE orders ADD COLUMN customer_lng REAL');
 
 const count = db.prepare('SELECT COUNT(*) AS c FROM cooks').get().c;
 if (count === 0) {
-  const insCook = db.prepare('INSERT INTO cooks (name, area, phone, fssai, veg, rating, approved) VALUES (?,?,?,?,?,?,1)');
+  const insCook = db.prepare('INSERT INTO cooks (name, area, phone, fssai, veg, rating, approved, address, lat, lng) VALUES (?,?,?,?,?,?,1,?,?,?)');
   const insItem = db.prepare('INSERT INTO menu_items (cook_id, name, description, price, veg) VALUES (?,?,?,?,?)');
-  const c1 = insCook.run('Lakshmi Amma', 'Thiruvottiyur', '+919000000001', '12345678901234', 1, 4.8).lastInsertRowid;
+  const c1 = insCook.run('Lakshmi Amma', 'Thiruvottiyur', '+919000000001', '12345678901234', 1, 4.8,
+    'TH Road, Thiruvottiyur, Chennai 600019', 13.1612, 80.3010).lastInsertRowid;
   insItem.run(c1, 'Sambar sadam + poriyal', 'Toor dal, karamani poriyal', 60, 1);
   insItem.run(c1, 'Curd rice + pickle', 'Coconut, mango pickle', 45, 1);
   insItem.run(c1, 'Chapathi (3) + kurma', 'Mixed veg kurma', 70, 1);
-  const c2 = insCook.run('Fathima Kitchen', 'Thiruvottiyur', '+919000000002', '98765432109876', 0, 4.9).lastInsertRowid;
+  const c2 = insCook.run('Fathima Kitchen', 'Thiruvottiyur', '+919000000002', '98765432109876', 0, 4.9,
+    'Ennore High Road, Thiruvottiyur, Chennai 600019', 13.1555, 80.3045).lastInsertRowid;
   insItem.run(c2, 'Chicken biryani', 'Seeraga samba, raita free', 120, 0);
   insItem.run(c2, 'Egg curry + chapathi', '2 egg, 3 chapathi', 90, 0);
 }
