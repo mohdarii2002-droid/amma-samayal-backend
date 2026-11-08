@@ -2,8 +2,15 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Amma Samayal</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#17794a">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Amma Samayal">
 <style>
   :root{--bg:#f3f8f4;--card:#fff;--ink:#17241c;--muted:#6b7280;--brand:#17794a;--brand-dark:#0e4f30;--accent:#16a34a;--soft:#d9f0e4;--line:#e5efe9;--blue:#2563eb;--red:#dc2626;--gold:#dd9a05}
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -115,6 +122,7 @@
         <button class="rolebtn" onclick="chooseRole('rider')">🛵 <span><b id="r-rider">Delivery Partner</b><br><small id="r-riders">Deliver orders</small></span></button>
       </div>
       <div id="loginForm"></div>
+      <button id="installBtn" class="rolebtn" style="display:none;background:rgba(255,255,255,.14);color:#fff;justify-content:center;margin-top:10px;border:1px solid rgba(255,255,255,.35);font-size:14px" onclick="doInstall()">📲 Install app</button>
     </div>
   </div>
 
@@ -620,6 +628,12 @@ function initLogin(){
   }
 }
 initLogin();
+/* ---- PWA: installable app + service worker ---- */
+let deferredPrompt=null;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;const b=document.getElementById('installBtn');if(b)b.style.display='flex';});
+function doInstall(){if(deferredPrompt){deferredPrompt.prompt();deferredPrompt.userChoice.finally(()=>{deferredPrompt=null;const b=document.getElementById('installBtn');if(b)b.style.display='none';});}else{toast(lang==='ta'?'Browser menu → "Add to Home Screen"':'Browser menu → "Add to Home Screen"');}}
+window.addEventListener('appinstalled',()=>{const b=document.getElementById('installBtn');if(b)b.style.display='none';});
+if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('/sw.js').catch(()=>{});});}
 </script>
 </body>
 </html>

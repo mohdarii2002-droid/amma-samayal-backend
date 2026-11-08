@@ -1,0 +1,18 @@
+{
+  "name": "Amma Samayal — Veettu Samayal",
+  "short_name": "Amma Samayal",
+  "description": "Veettu samayal delivery — suththamaana veetu saapadu, daily delivery.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f5131",
+  "theme_color": "#17794a",
+  "lang": "ta-IN",
+  "categories": ["food", "shopping", "lifestyle"],
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
