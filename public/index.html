@@ -149,6 +149,10 @@ const T={
   liveb:{ta:"LIVE — நிஜ backend. தரவு server-la சேமிக்கும்.",en:"LIVE — real backend. Data saved on server."},
   veg:{ta:"சைவம்",en:"Veg"},non:{ta:"அசைவம்",en:"Non-veg"},err:{ta:"பிழை — மீண்டும் முயற்சி",en:"Error — try again"},
   logout:{ta:"வெளியேறு",en:"Logout"},
+  received:{ta:"✓ வந்தது — உறுதி செய்",en:"✓ Received — confirm"},
+  waitconfirm:{ta:"வாடிக்கையாளர் உறுதி பண்ணனும்...",en:"Waiting for customer to confirm..."},
+  myreviews:{ta:"கருத்து",en:"Reviews"},noreviews:{ta:"இன்னும் கருத்து இல்லை",en:"No reviews yet"},
+  active:{ta:"நடப்பு ஆர்டர்",en:"Active orders"},pastord:{ta:"பழைய ஆர்டர்",en:"Previous orders"},
 };
 function t(k){return T[k]?T[k][lang]:k;}
 const stepTxt={0:{ta:["ஆர்டர் சென்றது","கூக் பார்க்கிறார்"],en:["Order placed","Cook notified"]},1:{ta:["கூக் ஏற்றார்","சமைக்கிறார்"],en:["Accepted","Cooking"]},2:{ta:["சமைக்கிறார்","தயாராகிறது"],en:["Cooking","Preparing"]},3:{ta:["டெலிவரி 🛵","வழியில்"],en:["Out for delivery 🛵","On the way"]},4:{ta:["வந்தது","சாப்பிடுங்க 😋"],en:["Delivered","Enjoy 😋"]}};
@@ -201,7 +205,9 @@ async function renderCust(){
   document.getElementById('view').innerHTML=`
     <div class="top"><h1>🍲 Amma Samayal</h1><div class="sub">📍 Thiruvottiyur, Chennai</div></div>
     <div class="wrap">
-      ${myOrders.length?`<div class="sec-title">${t('myord')}</div>${myOrders.map(custOrderCard).join('')}`:''}
+      ${(()=>{const act=myOrders.filter(o=>custStage(o)<4);const past=myOrders.filter(o=>custStage(o)>=4);
+        return (act.length?`<div class="sec-title">${t('active')}</div>${act.map(custOrderCard).join('')}`:'')
+             +(past.length?`<div class="sec-title">${t('pastord')} 📋</div>${past.map(custPastCard).join('')}`:'');})()}
       <div class="sec-title">${t('near')} 👩‍🍳</div>
       ${cooks.map(c=>`<div class="card" onclick="openCook(${c.id})"><div class="row"><div class="av" style="background:${cbg(c.id)}">${cemoji(c.id)}</div>
         <div style="flex:1"><h3>${c.name} <span class="veg ${c.veg?'':'non'}"></span></h3>
@@ -214,6 +220,13 @@ function custOrderCard(o){const st=custStage(o);const live=st<4;const emoji=cemo
     <div style="flex:1"><h3>Order #${o.id}</h3><div class="meta">₹${o.total} · ${o.plan||''}</div>
     <div class="meta" style="color:${live?'var(--brand)':'var(--accent)'};font-weight:700;margin-top:3px">${live?('🛵 '+stepTxt[st][lang][0]):(o.stars?('★ '+o.stars+'/5'):'✓ '+stepTxt[4][lang][0])}</div></div>
     ${live?`<button class="btn" onclick="openTrack(${o.id})">${t('track')}</button>`:(o.stars?'':`<button class="btn g" onclick="openRate(${o.id})">${t('rate')}</button>`)}
+    </div></div>`;}
+function custPastCard(o){const emoji=cemoji(o.cook_id);
+  return `<div class="card"><div class="row"><div class="av" style="background:${cbg(o.cook_id)}">${emoji}</div>
+    <div style="flex:1"><h3>Order #${o.id} <span style="color:var(--accent);font-size:11px;font-weight:700">✓ ${stepTxt[4][lang][0]}</span></h3>
+    <div class="meta" style="margin-top:4px">${o.items.map(i=>i.name+' ×'+i.qty).join(', ')}</div>
+    <div class="meta" style="margin-top:3px">₹${o.total} · ${o.stars?('★ '+o.stars+'/5'):(lang==='ta'?'rate pannala':'not rated')}</div></div>
+    ${o.stars?`<button class="btn" style="background:var(--accent)" onclick="openCook(${o.cook_id})">${t('reorder')}</button>`:`<button class="btn g" onclick="openRate(${o.id})">${t('rate')}</button>`}
     </div></div>`;}
 
 async function openCook(id){
@@ -264,7 +277,13 @@ async function openTrack(id){
     <div class="meta" style="margin-bottom:12px">#${o.id} · ₹${o.total}</div>
     ${[0,1,2,3,4].map(i=>{const cls=i<st?'done':i===st?'active':'pending';return `<div class="trk ${cls}">${i<4?'<div class="ln"></div>':''}<div class="bb">${i<st?'✓':['📝','👩‍🍳','🍳','🛵','🏠'][i]}</div><div><b>${stepTxt[i][lang][0]}</b><small>${stepTxt[i][lang][1]}</small></div></div>`;}).join('')}
     ${o.rider_name&&st>=3&&st<4?`<div class="deliv"><div style="display:flex;align-items:center;gap:9px"><div class="av" style="width:38px;height:38px;background:#dbeafe;font-size:18px">🛵</div><div style="flex:1"><small style="color:var(--muted);font-size:11px">${t('rider')}</small><br><b>${o.rider_name}</b> · ${o.rider_phone}</div><button class="callb" onclick="alert('Demo call ${o.rider_phone}')">📞</button></div></div>`:''}
-    ${st>=4?`<button class="btn g full" onclick="closeSheet();openRate(${o.id})">${t('rate')}</button>`:`<button class="btn full" style="background:#fff;color:var(--brand);border:1.5px solid var(--brand)" onclick="openTrack(${o.id})">🔄 Refresh</button><div class="meta" style="text-align:center;margin-top:10px">${lang==='ta'?'Cook accept pannaa Refresh pannு':'Cook acts → press Refresh'}</div>`}`;
+    ${st>=4?`<button class="btn g full" onclick="closeSheet();openRate(${o.id})">${t('rate')}</button>`
+      :st===3?`<button class="btn g full" onclick="confirmReceived(${o.id})">${t('received')}</button><div class="meta" style="text-align:center;margin-top:8px">${lang==='ta'?'சாப்பாடு வந்தவுடன் இதை அழுத்துங்க':'Press this when food arrives'}</div>`
+      :`<button class="btn full" style="background:#fff;color:var(--brand);border:1.5px solid var(--brand)" onclick="openTrack(${o.id})">🔄 Refresh</button><div class="meta" style="text-align:center;margin-top:10px">${lang==='ta'?'Cook accept pannaa Refresh pannு':'Cook acts → press Refresh'}</div>`}`;
+}
+async function confirmReceived(id){
+  try{await api('/api/orders/'+id+'/status',{method:'PATCH',body:JSON.stringify({status:'delivered'})});toast('✓');closeSheet();openRate(id);}
+  catch(e){toast(t('err'));}
 }
 let rv=0;
 async function openRate(id){rv=0;
@@ -288,13 +307,25 @@ async function renderCook(){
     <div class="top cook"><h1>${t('cookhi')}, ${CURRENT.name} 👩‍🍳</h1><div class="sub">📍 Thiruvottiyur · ${orders.filter(o=>o.status==='new').length} ${lang==='ta'?'புதிய':'new'}</div></div>
     <div class="wrap">
       <div class="kpis"><div class="kpi"><b>${orders.filter(o=>o.status==='new').length}</b><small>${lang==='ta'?'புதிய':'New'}</small></div><div class="kpi"><b>₹${earn}</b><small>${lang==='ta'?'வருமானம்':'Earned'}</small></div><div class="kpi"><b>${orders.filter(o=>o.status==='delivered').length}</b><small>${lang==='ta'?'முடிந்தது':'Done'}</small></div></div>
-      <div style="display:flex;gap:7px;background:#f3f4f6;border-radius:10px;padding:5px;margin-bottom:12px">
-        <div style="flex:1;text-align:center;padding:8px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;${cookTab==='orders'?'background:var(--brand);color:#fff':'color:#6b7280'}" onclick="cookTab='orders';renderCook()">${t('orders')}</div>
-        <div style="flex:1;text-align:center;padding:8px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;${cookTab==='menu'?'background:var(--brand);color:#fff':'color:#6b7280'}" onclick="cookTab='menu';renderCook()">${t('mymenu')}</div>
+      <div style="display:flex;gap:6px;background:#f3f4f6;border-radius:10px;padding:5px;margin-bottom:12px">
+        <div style="flex:1;text-align:center;padding:8px 4px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;${cookTab==='orders'?'background:var(--brand);color:#fff':'color:#6b7280'}" onclick="cookTab='orders';renderCook()">📥 ${t('orders')}</div>
+        <div style="flex:1;text-align:center;padding:8px 4px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;${cookTab==='menu'?'background:var(--brand);color:#fff':'color:#6b7280'}" onclick="cookTab='menu';renderCook()">🍲 ${t('mymenu')}</div>
+        <div style="flex:1;text-align:center;padding:8px 4px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;${cookTab==='reviews'?'background:var(--brand);color:#fff':'color:#6b7280'}" onclick="cookTab='reviews';renderCook()">⭐ ${t('myreviews')}</div>
       </div>
       <button class="btn full" style="background:#fff;color:var(--brand);border:1.5px solid var(--brand);margin-top:0;margin-bottom:12px" onclick="renderCook()">🔄 Refresh</button>
-      ${cookTab==='orders'?renderCookOrders(orders):renderCookMenu(menu)}
+      ${cookTab==='orders'?renderCookOrders(orders):cookTab==='menu'?renderCookMenu(menu):renderCookReviews(orders)}
     </div>`;
+}
+function renderCookReviews(orders){
+  const rated=orders.filter(o=>o.stars);
+  if(!rated.length)return `<div class="empty">${t('noreviews')} ⭐<br><small>${lang==='ta'?'Customer rate pannaa inge varum':'Customer ratings show here'}</small></div>`;
+  const avg=(rated.reduce((a,o)=>a+o.stars,0)/rated.length).toFixed(1);
+  return `<div class="card" style="text-align:center;background:linear-gradient(135deg,#fff7ed,#ffe0b2)"><div style="font-size:30px;font-weight:800;color:var(--brand-dark)">★ ${avg}</div><div class="meta">${rated.length} ${lang==='ta'?'விமர்சனம்':'reviews'}</div></div>
+    ${rated.map(o=>{const bad=o.stars<=2;return `<div class="card" style="${bad?'border-left:4px solid var(--red)':''}">
+      <div style="display:flex;justify-content:space-between;align-items:center"><div class="meta">#${o.id} · ${o.customer_name||''}</div><span style="color:var(--gold);font-size:15px">${'★'.repeat(o.stars)}${'☆'.repeat(5-o.stars)}</span></div>
+      ${o.remark?`<div style="font-size:13px;margin-top:6px">"${o.remark}"</div>`:`<div class="meta" style="margin-top:6px">${lang==='ta'?'கருத்து இல்லை':'No remark'}</div>`}
+      <div class="meta" style="margin-top:5px">${o.items.map(i=>i.name).join(', ')}</div>
+    </div>`;}).join('')}`;
 }
 function renderCookOrders(orders){
   const act=orders.filter(o=>o.status!=='delivered'&&o.status!=='rejected');
@@ -305,7 +336,7 @@ function renderCookOrders(orders){
       <div class="foot"><span class="meta">${t('total')}</span><b>₹${o.total}</b></div>
       ${o.status==='new'?`<div style="display:flex;gap:8px;margin-top:10px"><button class="mini2" style="flex:1;padding:10px;background:#fee2e2;color:var(--red)" onclick="cookAct(${o.id},'rejected')">${t('reject')}</button><button class="btn" style="flex:1" onclick="cookAct(${o.id},'cooking')">${t('accept')}</button></div>`:''}
       ${o.status==='cooking'?`<button class="btn full" style="background:var(--gold)" onclick="cookAct(${o.id},'out')">${t('ready')}</button>`:''}
-      ${o.status==='out'?`<div class="deliv" style="margin-top:10px"><div style="display:flex;align-items:center;gap:9px"><div class="av" style="width:38px;height:38px;background:#dbeafe;font-size:18px">🛵</div><div style="flex:1"><small style="color:var(--muted);font-size:11px">${t('rider')}</small><br><b>${o.rider_name}</b> · ${o.rider_phone}</div><button class="callb" onclick="alert('Demo call ${o.rider_phone}')">📞 ${t('call')}</button></div></div><button class="btn g full" onclick="cookAct(${o.id},'delivered')">${t('markdel')}</button>`:''}
+      ${o.status==='out'?`<div class="deliv" style="margin-top:10px"><div style="display:flex;align-items:center;gap:9px"><div class="av" style="width:38px;height:38px;background:#dbeafe;font-size:18px">🛵</div><div style="flex:1"><small style="color:var(--muted);font-size:11px">${t('rider')}</small><br><b>${o.rider_name}</b> · ${o.rider_phone}</div><button class="callb" onclick="alert('Demo call ${o.rider_phone}')">📞 ${t('call')}</button></div><div style="margin-top:9px;font-size:12px;font-weight:700;color:#1e40af;text-align:center">⏳ ${t('waitconfirm')}</div></div>`:''}
     </div>`).join('');
 }
 async function cookAct(id,s){
