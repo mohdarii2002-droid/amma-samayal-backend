@@ -97,15 +97,23 @@ const count = db.prepare('SELECT COUNT(*) AS c FROM cooks').get().c;
 if (count === 0) {
   const insCook = db.prepare('INSERT INTO cooks (name, area, phone, fssai, veg, rating, approved, address, lat, lng) VALUES (?,?,?,?,?,?,1,?,?,?)');
   const insItem = db.prepare('INSERT INTO menu_items (cook_id, name, description, price, veg) VALUES (?,?,?,?,?)');
-  const c1 = insCook.run('Lakshmi Amma', 'Thiruvottiyur', '+919000000001', '12345678901234', 1, 4.8,
+  const c1 = insCook.run('Lakshmi Amma', 'Thiruvottiyur', '9000000001', '12345678901234', 1, 4.8,
     'TH Road, Thiruvottiyur, Chennai 600019', 13.1612, 80.3010).lastInsertRowid;
   insItem.run(c1, 'Sambar sadam + poriyal', 'Toor dal, karamani poriyal', 60, 1);
   insItem.run(c1, 'Curd rice + pickle', 'Coconut, mango pickle', 45, 1);
   insItem.run(c1, 'Chapathi (3) + kurma', 'Mixed veg kurma', 70, 1);
-  const c2 = insCook.run('Fathima Kitchen', 'Thiruvottiyur', '+919000000002', '98765432109876', 0, 4.9,
+  const c2 = insCook.run('Fathima Kitchen', 'Thiruvottiyur', '9000000002', '98765432109876', 0, 4.9,
     'Ennore High Road, Thiruvottiyur, Chennai 600019', 13.1555, 80.3045).lastInsertRowid;
   insItem.run(c2, 'Chicken biryani', 'Seeraga samba, raita free', 120, 0);
   insItem.run(c2, 'Egg curry + chapathi', '2 egg, 3 chapathi', 90, 0);
+}
+
+// seed a couple of approved delivery partners so delivery can be tested
+const rcount = db.prepare('SELECT COUNT(*) AS c FROM riders').get().c;
+if (rcount === 0) {
+  const insR = db.prepare("INSERT INTO riders (name, phone, email, area, vehicle, license_number, pan_number, status) VALUES (?,?,?,?,?,?,?,'approved')");
+  insR.run('Murugan', '9000011111', 'murugan@example.com', 'Thiruvottiyur', 'TN01 AB 1234', 'TN0120210001234', 'ABCDE1234F');
+  insR.run('Karthik', '9000022222', 'karthik@example.com', 'Thiruvottiyur', 'TN01 CD 5678', 'TN0120210005678', 'ZYXWV9876E');
 }
 
 // keep cook status in sync with approved flag (approved demo cooks -> 'approved')

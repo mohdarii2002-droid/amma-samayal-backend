@@ -16,7 +16,10 @@
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
   body{font-family:"Segoe UI",system-ui,"Noto Sans Tamil",Roboto,sans-serif;background:#0e2a1d;color:var(--ink);display:flex;flex-direction:column;align-items:center;padding-bottom:30px}
   /* login */
-  .login{position:fixed;inset:0;background:radial-gradient(120% 120% at 50% 0%,#1d7a4e 0%,#0f5131 45%,#072e1c 100%);z-index:90;display:flex;align-items:center;justify-content:center;padding:24px;overflow:hidden}
+  .login{position:fixed;inset:0;background:radial-gradient(120% 120% at 50% 0%,#1d7a4e 0%,#0f5131 45%,#072e1c 100%);z-index:90;display:flex;align-items:center;justify-content:center;padding:24px;overflow:auto}
+  .login input, .login textarea, .login select{text-align:left}
+  .login label{color:#eafff3;opacity:.95;text-align:left}
+  .signup-card{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);border-radius:16px;padding:14px;margin-top:6px;text-align:left}
   .food-bg{position:absolute;inset:-20% -10%;font-size:40px;line-height:2;letter-spacing:16px;color:#fff;opacity:.06;pointer-events:none;overflow:hidden;transform:rotate(-13deg) scale(1.25);z-index:0;user-select:none;word-break:break-word}
   .login-inner{width:100%;max-width:360px;text-align:center;color:#fff;position:relative;z-index:1}
   .login .logo{box-shadow:0 10px 30px rgba(0,0,0,.35)}
@@ -154,6 +157,12 @@ let CURRENT=null;
 let CUST_PENDING=null;
 let confirmationResult=null;
 let recaptchaVerifier=null;
+let PENDING={role:null,phone:''};   // current login attempt
+let CUST_ADDRS=[];                   // logged-in customer's saved addresses
+let SIGNUP_DOCS={};                  // uploaded document URLs during signup
+/* Cloudinary (document photo upload) — filled once the user provides their account */
+const CLOUDINARY_CLOUD='';
+const CLOUDINARY_PRESET='';
 /* ---- session persistence (one-time login) ---- */
 function saveSession(s){try{localStorage.setItem('amma_session',JSON.stringify(s));}catch(e){}}
 function clearSession(){try{localStorage.removeItem('amma_session');}catch(e){}}
@@ -259,22 +268,14 @@ function applyLoginLabels(){
 function chooseRole(r){
   const f=document.getElementById('loginForm');
   document.getElementById('roleChoice').classList.add('hide');
-  if(r==='customer'){
+  if(r==='customer'||r==='cook'||r==='rider'){
+    PENDING={role:r,phone:''};SIGNUP_DOCS={};
+    const title={customer:'🍽️ '+(lang==='ta'?'வாடிக்கையாளர்':'Customer'),cook:'👩‍🍳 '+(lang==='ta'?'சமையல் பார்ட்னர்':'Cook Partner'),rider:'🛵 '+(lang==='ta'?'டெலிவரி பார்ட்னர்':'Delivery Partner')}[r];
     f.innerHTML=`<button class="lk" onclick="backRole()">←</button>
-      <input id="li-name" placeholder="${lang==='ta'?'உங்கள் பெயர்':'Your name'}">
+      <div class="hint" style="color:#fff;opacity:.95;font-weight:800;font-size:14px">${title}</div>
       <input id="li-phone" placeholder="${lang==='ta'?'மொபைல் எண் (10 இலக்கம்)':'Mobile (10 digit)'}" inputmode="numeric">
-      <button class="rolebtn solid" id="otpbtn" onclick="sendRealOtp()">${lang==='ta'?'OTP அனுப்பு →':'Send OTP →'}</button>
-      <div class="hint" style="color:#fff;opacity:.8">${lang==='ta'?'உங்கள் மொபைலுக்கு OTP SMS வரும்':'You will get an OTP SMS'}</div>`;
-  } else if(r==='cook'){
-    f.innerHTML=`<button class="lk" onclick="backRole()">←</button>
-      <p class="hint">${lang==='ta'?'சமையல்காரர் தேர்வு (demo)':'Pick cook (demo)'}</p>
-      <button class="rolebtn solid" onclick="doCook(1,'Lakshmi Amma')">👩🏽‍🍳 Lakshmi Amma</button>
-      <button class="rolebtn solid" onclick="doCook(2,'Fathima Kitchen')">🧕🏽 Fathima Kitchen</button>`;
-  } else if(r==='rider'){
-    f.innerHTML=`<button class="lk" onclick="backRole()">←</button>
-      <p class="hint">${lang==='ta'?'டெலிவரி நபர் தேர்வு (demo)':'Pick delivery person (demo)'}</p>
-      <button class="rolebtn solid" onclick="doRider('Murugan','+919000011111')">🛵 Murugan</button>
-      <button class="rolebtn solid" onclick="doRider('Karthik','+919000022222')">🛵 Karthik</button>`;
+      <button class="rolebtn solid" id="otpbtn" onclick="sendOtp()">${lang==='ta'?'OTP அனுப்பு →':'Send OTP →'}</button>
+      <div class="hint" style="color:#fff;opacity:.75">${lang==='ta'?'புதியவரா? OTP-க்கு அப்புறம் account உருவாக்கலாம்':'New here? Create account after OTP'}</div>`;
   } else {
     f.innerHTML=`<button class="lk" onclick="backRole()">←</button>
       <input id="li-pass" type="password" placeholder="${lang==='ta'?'அட்மின் கடவுச்சொல்':'Admin passcode'}">
@@ -288,11 +289,10 @@ function resetRecaptcha(){
   const old=document.getElementById('recaptcha-container');
   if(old&&old.parentNode){const fresh=document.createElement('div');fresh.id='recaptcha-container';old.parentNode.replaceChild(fresh,old);}
 }
-async function sendRealOtp(){
-  const n=(document.getElementById('li-name').value||'').trim()||'Customer';
+async function sendOtp(){
   const p=(document.getElementById('li-phone').value||'').replace(/\D/g,'');
   if(p.length!==10){toast(lang==='ta'?'சரியான 10 இலக்க மொபைல் எண் கொடுங்க':'Enter valid 10-digit mobile');return;}
-  CUST_PENDING={name:n,phone:p};
+  PENDING.phone=p;
   const btn=document.getElementById('otpbtn');btn.disabled=true;btn.textContent='...';
   const resetBtn=()=>{btn.disabled=false;btn.textContent=lang==='ta'?'OTP அனுப்பு →':'Send OTP →';};
   try{
@@ -310,21 +310,152 @@ async function sendRealOtp(){
 function showOtpInput(){
   const f=document.getElementById('loginForm');
   f.innerHTML=`<button class="lk" onclick="backRole()">←</button>
-    <div class="hint" style="color:#fff;opacity:.9">${lang==='ta'?'OTP அனுப்பப்பட்டது':'OTP sent to'} +91 ${CUST_PENDING.phone}</div>
+    <div class="hint" style="color:#fff;opacity:.9">${lang==='ta'?'OTP அனுப்பப்பட்டது':'OTP sent to'} +91 ${PENDING.phone}</div>
     <input id="li-otp" inputmode="numeric" placeholder="______" maxlength="6" style="text-align:center;letter-spacing:6px;font-size:20px">
-    <button class="rolebtn solid" onclick="verifyRealOtp()">${lang==='ta'?'சரிபார் →':'Verify →'}</button>
-    <div class="hint" style="color:#fff;opacity:.6;cursor:pointer" onclick="chooseRole('customer')">${lang==='ta'?'எண் மாற்ற':'Change number'}</div>`;
+    <button class="rolebtn solid" id="otpbtn" onclick="verifyOtp()">${lang==='ta'?'சரிபார் →':'Verify →'}</button>
+    <div class="hint" style="color:#fff;opacity:.6;cursor:pointer" onclick="chooseRole(PENDING.role)">${lang==='ta'?'எண் மாற்ற':'Change number'}</div>`;
   const el=document.getElementById('li-otp');if(el)el.focus();
 }
-function verifyRealOtp(){
+async function verifyOtp(){
   const code=(document.getElementById('li-otp').value||'').trim();
   if(!confirmationResult){toast('Send OTP first');return;}
   if(code.length<6){toast(lang==='ta'?'6 இலக்க OTP':'Enter 6-digit OTP');return;}
-  confirmationResult.confirm(code).then(()=>{
-    CUST_PHONE='cust-'+CUST_PENDING.phone;CURRENT={role:'cust',name:CUST_PENDING.name};
-    saveSession({role:'cust',phone:CUST_PENDING.phone,name:CUST_PENDING.name});
-    enter('cust','👤 '+CUST_PENDING.name);
-  }).catch(e=>{toast(lang==='ta'?'தவறான OTP':'Wrong OTP');});
+  const btn=document.getElementById('otpbtn');if(btn){btn.disabled=true;btn.textContent='...';}
+  try{ await confirmationResult.confirm(code); }
+  catch(e){ toast(lang==='ta'?'தவறான OTP':'Wrong OTP'); if(btn){btn.disabled=false;btn.textContent=lang==='ta'?'சரிபார் →':'Verify →';} return; }
+  // phone verified -> is this an existing account or a new signup?
+  let acc; try{ acc=await api('/api/account?role='+PENDING.role+'&phone='+encodeURIComponent(PENDING.phone)); }catch(e){ acc={exists:false}; }
+  if(acc.exists){ loginExisting(acc); } else { showSignup(); }
+}
+/* ---- existing account -> log in (respect approval for cook/rider) ---- */
+function loginExisting(acc){
+  const r=PENDING.role, p=PENDING.phone;
+  if(r==='customer'){
+    CUST_PHONE='cust-'+p;CURRENT={role:'cust',name:(acc.profile&&acc.profile.name)||'Customer'};
+    CUST_ADDRS=(acc.profile&&acc.profile.addresses)||[];
+    saveSession({role:'cust',phone:p,name:CURRENT.name});
+    enter('cust','👤 '+CURRENT.name);
+  } else if(r==='cook'){
+    if(acc.status!=='approved'){pendingScreen('cook',acc.status);return;}
+    LOGGED_COOK=acc.cook.id;CURRENT={role:'cook',name:acc.cook.name};
+    saveSession({role:'cook',cookId:acc.cook.id,name:acc.cook.name,phone:p});
+    enter('cook','👩‍🍳 '+acc.cook.name);
+  } else if(r==='rider'){
+    if(acc.status!=='approved'){pendingScreen('rider',acc.status);return;}
+    RIDER={name:acc.rider.name,phone:p};CURRENT={role:'rider',name:acc.rider.name};
+    saveSession({role:'rider',name:acc.rider.name,phone:p});
+    enter('rider','🛵 '+acc.rider.name);
+  }
+}
+function pendingScreen(role,status){
+  const f=document.getElementById('loginForm');const rej=status==='rejected';
+  f.innerHTML=`<button class="lk" onclick="backRole()">←</button>
+    <div style="background:rgba(255,255,255,.14);border-radius:16px;padding:20px;text-align:center;color:#fff">
+      <div style="font-size:42px">${rej?'❌':'⏳'}</div>
+      <h3 style="margin:10px 0 6px">${rej?(lang==='ta'?'Approve ஆகல':'Not approved'):(lang==='ta'?'Approval காத்திருக்கு':'Awaiting approval')}</h3>
+      <div style="font-size:13px;opacity:.9;line-height:1.5">${rej?(lang==='ta'?'Support-ஐ தொடர்பு கொள்ளுங்க.':'Please contact support.'):(lang==='ta'?'Admin approve பண்ணப்புறம் login ஆகலாம். Approve ஆனதும் உங்க email-ku அறிவிப்பு வரும். 📧':'You can log in once the admin approves you. You will get an email when approved. 📧')}</div>
+    </div>`;
+}
+/* ---- document photo upload (Cloudinary) ---- */
+let SU_VEG=true;
+function docRow(labelTxt,fileId,statusId,storeKey){
+  return `<label style="margin-top:8px">${labelTxt}</label>
+    <div style="display:flex;gap:8px;align-items:center">
+      <input id="${fileId}" type="file" accept="image/*" capture="environment" style="flex:1;font-size:11px;background:#fff;padding:7px">
+      <button class="addmini" type="button" onclick="uploadDoc('${fileId}','${statusId}','${storeKey}')">⬆️</button>
+    </div>
+    <div class="hint" id="${statusId}" style="color:#dff;opacity:.95">${SIGNUP_DOCS[storeKey]?'✅ '+(lang==='ta'?'பதிவேற்றப்பட்டது':'Uploaded'):''}</div>`;
+}
+async function uploadDoc(fileId,statusId,storeKey){
+  const el=document.getElementById(fileId);const f=el&&el.files&&el.files[0];const s=document.getElementById(statusId);
+  if(!f){if(s)s.textContent=lang==='ta'?'முதல்ல படம் தேர்ந்தெடு':'Pick a photo first';return;}
+  if(!CLOUDINARY_CLOUD||!CLOUDINARY_PRESET){if(s)s.textContent='⚠️ '+(lang==='ta'?'Photo upload innum setup ஆகல':'Photo upload not configured yet');SIGNUP_DOCS[storeKey]='';return;}
+  if(s)s.textContent=lang==='ta'?'பதிவேற்றுகிறது...':'Uploading...';
+  try{
+    const fd=new FormData();fd.append('file',f);fd.append('upload_preset',CLOUDINARY_PRESET);
+    const r=await fetch('https://api.cloudinary.com/v1_1/'+CLOUDINARY_CLOUD+'/auto/upload',{method:'POST',body:fd});
+    const j=await r.json();if(j.secure_url){SIGNUP_DOCS[storeKey]=j.secure_url;if(s)s.textContent='✅ '+(lang==='ta'?'பதிவேற்றப்பட்டது':'Uploaded');}else throw new Error('fail');
+  }catch(e){if(s)s.textContent='⚠️ '+(lang==='ta'?'பதிவேற்ற முடியல':'Upload failed');}
+}
+/* ---- signup forms (new users) ---- */
+function showSignup(){
+  const r=PENDING.role;const f=document.getElementById('loginForm');custAddr={text:'',lat:null,lng:null};
+  const head=`<button class="lk" onclick="backRole()">←</button><div class="hint" style="color:#fff;font-weight:800;font-size:14px">${lang==='ta'?'புதிய account':'Create account'} · 📱 ${PENDING.phone}</div>`;
+  if(r==='customer'){
+    f.innerHTML=head+`<div class="signup-card">
+      <input id="su-name" placeholder="${lang==='ta'?'உங்கள் பெயர் *':'Your name *'}">
+      <input id="su-email" type="email" placeholder="Email (${lang==='ta'?'விருப்பம்':'optional'})" style="margin-top:8px">
+      <label style="margin-top:8px">${lang==='ta'?'📍 டெலிவரி முகவரி *':'📍 Delivery address *'}</label>
+      <textarea id="su-addr" rows="2" placeholder="${lang==='ta'?'வீட்டு எண், தெரு, ஏரியா, pincode':'House no, street, area, pincode'}" style="width:100%;border:1.5px solid var(--line);border-radius:10px;padding:11px;font-family:inherit"></textarea>
+      <button class="btn full" type="button" style="background:#fff;color:var(--brand)" onclick="useMyLocation()">📍 ${lang==='ta'?'என் இருப்பிடம்':'Use my location'}</button>
+      <div class="hint" id="locmsg" style="color:#dff"></div>
+    </div>
+    <button class="rolebtn solid" onclick="submitCustomer()">${lang==='ta'?'Account உருவாக்கு →':'Create account →'}</button>`;
+  } else if(r==='cook'){
+    SU_VEG=true;
+    f.innerHTML=head+`<div class="signup-card">
+      <input id="su-name" placeholder="${lang==='ta'?'சமையல்காரர்/கடை பெயர் *':'Cook / kitchen name *'}">
+      <input id="su-email" type="email" placeholder="Email *" style="margin-top:8px">
+      <input id="su-exp" placeholder="${lang==='ta'?'அனுபவம் (எ.கா 5 வருடம்)':'Experience (e.g. 5 years)'}" style="margin-top:8px">
+      <input id="su-fssai" placeholder="FSSAI number" style="margin-top:8px">
+      ${docRow(lang==='ta'?'FSSAI சான்றிதழ் படம்':'FSSAI certificate photo','su-fssai-f','su-fssai-s','fssai_doc')}
+      ${docRow(lang==='ta'?'ID proof படம்':'ID proof photo','su-id-f','su-id-s','id_doc')}
+      <label style="margin-top:8px">${lang==='ta'?'🏠 சமையலறை முகவரி':'🏠 Kitchen address'}</label>
+      <textarea id="su-addr" rows="2" style="width:100%;border:1.5px solid var(--line);border-radius:10px;padding:11px;font-family:inherit"></textarea>
+      <button class="btn full" type="button" style="background:#fff;color:var(--brand)" onclick="useMyLocation()">📍 ${lang==='ta'?'சமையலறை இருப்பிடம்':'Kitchen location'}</button>
+      <div class="hint" id="locmsg" style="color:#dff"></div>
+      <div style="display:flex;gap:9px;margin-top:10px"><div id="v1" class="plan on" style="flex:1;justify-content:center;background:#fff" onclick="SU_VEG=true;v1.classList.add('on');v2.classList.remove('on')">🟢 ${t('veg')}</div><div id="v2" class="plan" style="flex:1;justify-content:center;background:#fff" onclick="SU_VEG=false;v2.classList.add('on');v1.classList.remove('on')">🔴 ${t('non')}</div></div>
+    </div>
+    <button class="rolebtn solid" onclick="submitCook()">${lang==='ta'?'Approval-க்கு அனுப்பு →':'Submit for approval →'}</button>`;
+  } else if(r==='rider'){
+    f.innerHTML=head+`<div class="signup-card">
+      <input id="su-name" placeholder="${lang==='ta'?'உங்கள் பெயர் *':'Your name *'}">
+      <input id="su-email" type="email" placeholder="Email *" style="margin-top:8px">
+      <input id="su-vehicle" placeholder="${lang==='ta'?'வாகனம் (bike no.)':'Vehicle (bike no.)'}" style="margin-top:8px">
+      <input id="su-lic" placeholder="Driving license number" style="margin-top:8px">
+      ${docRow('License photo','su-lic-f','su-lic-s','license_doc')}
+      <input id="su-pan" placeholder="PAN number" style="margin-top:8px">
+      ${docRow('PAN photo','su-pan-f','su-pan-s','pan_doc')}
+      <input id="su-bank" placeholder="${lang==='ta'?'Bank account number':'Bank account number'}" style="margin-top:8px">
+      <input id="su-ifsc" placeholder="IFSC code" style="margin-top:8px">
+    </div>
+    <button class="rolebtn solid" onclick="submitRider()">${lang==='ta'?'Approval-க்கு அனுப்பு →':'Submit for approval →'}</button>`;
+  }
+}
+async function submitCustomer(){
+  const name=(document.getElementById('su-name').value||'').trim();
+  const email=(document.getElementById('su-email').value||'').trim();
+  const addr=(document.getElementById('su-addr').value||'').trim();
+  if(!name||(!addr&&!custAddr.lat)){toast(lang==='ta'?'பெயர் & முகவரி கொடுங்க':'Name & address needed');return;}
+  const addresses=[{label:'Home',text:addr,lat:custAddr.lat,lng:custAddr.lng}];
+  try{
+    await api('/api/customers',{method:'POST',body:JSON.stringify({phone:PENDING.phone,name,email,addresses})});
+    CUST_PHONE='cust-'+PENDING.phone;CURRENT={role:'cust',name};CUST_ADDRS=addresses;
+    saveSession({role:'cust',phone:PENDING.phone,name});
+    enter('cust','👤 '+name);
+  }catch(e){toast(t('err'));}
+}
+async function submitCook(){
+  const name=(document.getElementById('su-name').value||'').trim();const email=(document.getElementById('su-email').value||'').trim();
+  if(!name||!email){toast(lang==='ta'?'பெயர் & email கொடுங்க':'Name & email needed');return;}
+  const body={name,phone:PENDING.phone,email,experience:(document.getElementById('su-exp').value||'').trim(),fssai:(document.getElementById('su-fssai').value||'').trim(),fssai_doc:SIGNUP_DOCS.fssai_doc||'',id_doc:SIGNUP_DOCS.id_doc||'',address:(document.getElementById('su-addr').value||'').trim(),lat:custAddr.lat,lng:custAddr.lng,veg:SU_VEG?1:0};
+  try{await api('/api/cook-signup',{method:'POST',body:JSON.stringify(body)});signupDone('cook');}
+  catch(e){toast(/registered/.test(e.message||'')?(lang==='ta'?'இந்த number ஏற்கனவே உள்ளது':'Phone already registered'):t('err'));}
+}
+async function submitRider(){
+  const name=(document.getElementById('su-name').value||'').trim();const email=(document.getElementById('su-email').value||'').trim();
+  if(!name||!email){toast(lang==='ta'?'பெயர் & email கொடுங்க':'Name & email needed');return;}
+  const body={name,phone:PENDING.phone,email,vehicle:(document.getElementById('su-vehicle').value||'').trim(),license_number:(document.getElementById('su-lic').value||'').trim(),license_doc:SIGNUP_DOCS.license_doc||'',pan_number:(document.getElementById('su-pan').value||'').trim(),pan_doc:SIGNUP_DOCS.pan_doc||'',bank_account:(document.getElementById('su-bank').value||'').trim(),bank_ifsc:(document.getElementById('su-ifsc').value||'').trim()};
+  try{await api('/api/riders',{method:'POST',body:JSON.stringify(body)});signupDone('rider');}
+  catch(e){toast(/registered/.test(e.message||'')?(lang==='ta'?'இந்த number ஏற்கனவே உள்ளது':'Phone already registered'):t('err'));}
+}
+function signupDone(role){
+  document.getElementById('loginForm').innerHTML=`<div style="background:rgba(255,255,255,.14);border-radius:16px;padding:22px;text-align:center;color:#fff">
+    <div style="font-size:46px">⏳</div>
+    <h3 style="margin:10px 0 6px">${lang==='ta'?'விண்ணப்பம் அனுப்பப்பட்டது!':'Application submitted!'}</h3>
+    <div style="font-size:13px;opacity:.9;line-height:1.5">${lang==='ta'?'Admin உங்க details verify பண்ணி approve பண்ணுவாங்க. Approve ஆனதும் உங்க email-ku அறிவிப்பு வரும் 📧. அப்புறம் இதே number + OTP-ல login பண்ணலாம்.':'The admin will verify your details and approve. You will get an email when approved 📧. Then log in with this number + OTP.'}</div>
+    <button class="rolebtn solid" style="margin-top:14px" onclick="backRole()">${lang==='ta'?'சரி':'OK'}</button>
+  </div>`;
 }
 function doCook(id,name){LOGGED_COOK=id;CURRENT={role:'cook',name};saveSession({role:'cook',cookId:id,name});enter('cook','👩‍🍳 '+name);}
 function doRider(name,phone){RIDER={name,phone};CURRENT={role:'rider',name};saveSession({role:'rider',name,phone});enter('rider','🛵 '+name);}
@@ -350,7 +481,9 @@ function useMyLocation(){
 const plans=[{n:{ta:"ஒரு நாள்",en:"One day"},m:1},{n:{ta:"வாரம் (6+1)",en:"Weekly (6+1)"},m:5},{n:{ta:"மாதம்",en:"Monthly"},m:22}];
 async function renderCust(){
   loading();
-  const [cooks,myOrders]=await Promise.all([api('/api/cooks'),api('/api/orders?customerPhone='+encodeURIComponent(CUST_PHONE))]);
+  const custPh=(CUST_PHONE||'').replace('cust-','');
+  const [cooks,myOrders,prof]=await Promise.all([api('/api/cooks'),api('/api/orders?customerPhone='+encodeURIComponent(CUST_PHONE)),api('/api/customers/'+encodeURIComponent(custPh)).catch(()=>null)]);
+  if(prof&&prof.addresses)CUST_ADDRS=prof.addresses;
   document.getElementById('view').innerHTML=`
     <div class="top"><h1>🍲 Amma Samayal</h1><div class="sub">📍 Thiruvottiyur, Chennai</div></div>
     <div class="wrap">
@@ -397,6 +530,14 @@ function renderCookSheet(){
     <button class="btn full" ${count?'':'disabled'} onclick="openPlan()">${count?`${t('proceed')} · ${count} · ₹${sub} →`:t('proceed')}</button>`;
 }
 function chg(mid,d){cart.sel[mid]=(cart.sel[mid]||0)+d;if(cart.sel[mid]<=0)delete cart.sel[mid];renderCookSheet();}
+function pickAddr(i){const a=CUST_ADDRS[i];if(!a)return;custAddr={text:a.text||'',lat:a.lat||null,lng:a.lng||null};openPlan();}
+async function saveNewAddress(){
+  const text=(custAddr.text||'').trim();if(!text)return;
+  if(CUST_ADDRS.some(a=>(a.text||'').trim()===text))return;  // already saved
+  CUST_ADDRS.push({label:'Saved '+(CUST_ADDRS.length+1),text,lat:custAddr.lat,lng:custAddr.lng});
+  const phone=(CUST_PHONE||'').replace('cust-','');
+  try{await api('/api/customers/'+encodeURIComponent(phone)+'/addresses',{method:'PUT',body:JSON.stringify({addresses:CUST_ADDRS})});}catch(e){}
+}
 function openPlan(){
   const sub=Object.entries(cart.sel).reduce((a,[mid,q])=>a+cart.menu.find(m=>m.id==mid).price*q,0);
   document.getElementById('sheetInner').innerHTML=`
@@ -404,6 +545,7 @@ function openPlan(){
     <div class="card" style="box-shadow:none;border:1px solid var(--line)">${Object.entries(cart.sel).map(([mid,q])=>{const m=cart.menu.find(x=>x.id==mid);return `<div class="meta" style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span>${m.name} ×${q}</span><span>₹${m.price*q}</span></div>`;}).join('')}</div>
     ${plans.map((p,i)=>`<div class="plan ${i===cart.plan?'on':''}" onclick="cart.plan=${i};openPlan()"><div><b style="font-size:14px">${p.n[lang]}</b></div><b>₹${sub*p.m}</b></div>`).join('')}
     <label>${lang==='ta'?'📍 டெலிவரி முகவரி':'📍 Delivery address'}</label>
+    ${CUST_ADDRS.length?`<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px">${CUST_ADDRS.map((a,i)=>`<div class="plan ${custAddr.text===a.text?'on':''}" style="padding:9px" onclick="pickAddr(${i})"><div style="font-size:12px"><b>${a.label||'📍'}</b> — ${a.text||''}</div></div>`).join('')}<div class="meta" style="margin-top:2px">${lang==='ta'?'அல்லது புதிய முகவரி கீழே type பண்ணு:':'Or type a new address below:'}</div></div>`:''}
     <textarea id="addr" rows="2" placeholder="${lang==='ta'?'வீட்டு எண், தெரு, ஏரியா, pincode':'House no, street, area, pincode'}" style="width:100%;border:1.5px solid var(--line);border-radius:10px;padding:11px;font-size:14px;font-family:inherit;resize:vertical">${custAddr.text||''}</textarea>
     <button class="btn full" style="background:#fff;color:var(--brand);border:1.5px solid var(--brand);margin-top:8px" onclick="useMyLocation()">📍 ${lang==='ta'?'என் இருப்பிடத்தை பகிர்':'Use my current location'}</button>
     <div class="meta" id="locmsg" style="text-align:center;margin-top:4px">${custAddr.lat?('✅ '+(lang==='ta'?'இருப்பிடம் சேமிக்கப்பட்டது':'Location captured')):''}</div>
@@ -413,6 +555,7 @@ function openPlan(){
 async function placeOrder(){
   const addrEl=document.getElementById('addr');if(addrEl)custAddr.text=addrEl.value.trim();
   if(!custAddr.text&&!custAddr.lat){toast(lang==='ta'?'டெலிவரி முகவரி கொடுங்க':'Please add a delivery address');return;}
+  saveNewAddress();
   const btn=document.getElementById('confirmBtn');btn.disabled=true;btn.textContent='...';
   const sub=Object.entries(cart.sel).reduce((a,[mid,q])=>a+cart.menu.find(m=>m.id==mid).price*q,0);
   const items=Object.entries(cart.sel).map(([mid,q])=>{const m=cart.menu.find(x=>x.id==mid);return {name:m.name,qty:q,price:m.price};});
@@ -586,12 +729,32 @@ async function riderAct(id,s){try{await api('/api/orders/'+id+'/status',{method:
 /* ============ ADMIN ============ */
 async function renderAdmin(){
   loading();
-  const [orders,reviews,cooks]=await Promise.all([api('/api/orders'),api('/api/reviews'),api('/api/cooks')]);
+  const [orders,reviews,cooks,pending]=await Promise.all([api('/api/orders'),api('/api/reviews'),api('/api/cooks'),api('/api/admin/pending').catch(()=>({cooks:[],riders:[]}))]);
+  const pc=pending.cooks||[],pr=pending.riders||[];const pendCount=pc.length+pr.length;
+  const docLink=(url,label)=>url?`<a href="${url}" target="_blank" style="color:var(--blue);font-weight:700">🖼️ ${label}</a>`:`<span style="color:var(--muted)">${label}: ${lang==='ta'?'படம் இல்ல':'no photo'}</span>`;
+  const cookCard=c=>`<div class="card" style="border-left:4px solid var(--gold)">
+      <div style="display:flex;justify-content:space-between"><b>👩‍🍳 ${c.name}</b><span class="badge b-cook">⏳ ${lang==='ta'?'காத்திருக்கு':'Pending'}</span></div>
+      <div class="meta" style="margin-top:4px">📞 ${c.phone} · ✉️ ${c.email||'-'}</div>
+      <div class="meta">🧑‍🍳 ${lang==='ta'?'அனுபவம்':'Exp'}: ${c.experience||'-'} · ${c.veg?'🟢 Veg':'🔴 Non-veg'}</div>
+      <div class="meta">🏠 ${c.address||'-'}</div>
+      <div class="meta">🪪 FSSAI: ${c.fssai||'-'}</div>
+      <div class="meta" style="display:flex;gap:12px;margin-top:4px">${docLink(c.fssai_doc,'FSSAI')} ${docLink(c.id_doc,'ID')}</div>
+      <div style="display:flex;gap:8px;margin-top:10px"><button class="mini2" style="flex:1;padding:10px;background:#fee2e2;color:var(--red)" onclick="decideCook(${c.id},'reject')">${t('reject')}</button><button class="btn" style="flex:1" onclick="decideCook(${c.id},'approve')">✅ ${lang==='ta'?'Approve + Email':'Approve + Email'}</button></div>
+    </div>`;
+  const riderCard=r=>`<div class="card" style="border-left:4px solid var(--blue)">
+      <div style="display:flex;justify-content:space-between"><b>🛵 ${r.name}</b><span class="badge b-out">⏳ ${lang==='ta'?'காத்திருக்கு':'Pending'}</span></div>
+      <div class="meta" style="margin-top:4px">📞 ${r.phone} · ✉️ ${r.email||'-'}</div>
+      <div class="meta">🏍️ ${r.vehicle||'-'} · 🏦 ${r.bank_account||'-'} / ${r.bank_ifsc||'-'}</div>
+      <div class="meta">🪪 DL: ${r.license_number||'-'} · PAN: ${r.pan_number||'-'}</div>
+      <div class="meta" style="display:flex;gap:12px;margin-top:4px">${docLink(r.license_doc,'License')} ${docLink(r.pan_doc,'PAN')}</div>
+      <div style="display:flex;gap:8px;margin-top:10px"><button class="mini2" style="flex:1;padding:10px;background:#fee2e2;color:var(--red)" onclick="decideRider(${r.id},'reject')">${t('reject')}</button><button class="btn" style="flex:1" onclick="decideRider(${r.id},'approve')">✅ ${lang==='ta'?'Approve + Email':'Approve + Email'}</button></div>
+    </div>`;
   document.getElementById('view').innerHTML=`
-    <div class="top admin"><h1>${t('admintitle')}</h1><div class="sub">Owner · ${orders.length} ${lang==='ta'?'ஆர்டர்':'orders'}</div></div>
+    <div class="top admin"><h1>${t('admintitle')}</h1><div class="sub">Owner · ${orders.length} ${lang==='ta'?'ஆர்டர்':'orders'} · ${pendCount} ${lang==='ta'?'approval':'to approve'}</div></div>
     <div class="wrap">
       <button class="btn full" style="background:#fff;color:var(--ink);border:1.5px solid var(--line);margin-top:0;margin-bottom:12px" onclick="renderAdmin()">🔄 Refresh</button>
-      <div class="kpis"><div class="kpi"><b>${orders.length}</b><small>${lang==='ta'?'ஆர்டர்':'Orders'}</small></div><div class="kpi"><b>₹${orders.reduce((a,o)=>a+Math.round(o.total*0.15),0)}</b><small>${lang==='ta'?'கமிஷன்':'Commission'}</small></div><div class="kpi"><b>${cooks.length}</b><small>${lang==='ta'?'சமையல்':'Cooks'}</small></div></div>
+      <div class="kpis"><div class="kpi"><b>${orders.length}</b><small>${lang==='ta'?'ஆர்டர்':'Orders'}</small></div><div class="kpi"><b style="color:${pendCount?'#b45309':'inherit'}">${pendCount}</b><small>${lang==='ta'?'Approval':'Pending'}</small></div><div class="kpi"><b>${cooks.length}</b><small>${lang==='ta'?'சமையல்':'Cooks'}</small></div></div>
+      ${pendCount?`<div class="sec-title">⏳ ${lang==='ta'?'Approval காத்திருக்கு':'Pending approvals'}</div>${pc.map(cookCard).join('')}${pr.map(riderCard).join('')}`:''}
       <div class="sec-title">${t('live')}</div>
       ${orders.length?orders.map(o=>`<div class="card" style="border-left:4px solid ${o.locked?'#b91c1c':o.status==='delivered'?'var(--accent)':'var(--blue)'}">
         <div style="display:flex;justify-content:space-between;align-items:center"><div><b>#${o.id}</b> · ₹${o.total}</div><span class="badge ${o.locked?'b-lock':o.status==='new'?'b-new':o.status==='cooking'?'b-cook':o.status==='delivered'?'b-done':'b-out'}">${o.locked?'🔒 LOCK':o.status}</span></div>
@@ -608,6 +771,8 @@ async function renderAdmin(){
     </div>`;
 }
 async function toggleLock(id,v){try{await api('/api/orders/'+id+'/lock',{method:'PATCH',body:JSON.stringify({locked:v})});renderAdmin();}catch(e){toast(t('err'));}}
+async function decideCook(id,decision){try{await api('/api/cooks/'+id+'/approve',{method:'PATCH',body:JSON.stringify({decision})});toast(decision==='approve'?(lang==='ta'?'✅ Approve ஆச்சு, email அனுப்பப்பட்டது':'✅ Approved, email sent'):(lang==='ta'?'Reject ஆச்சு':'Rejected'));renderAdmin();}catch(e){toast(t('err'));}}
+async function decideRider(id,decision){try{await api('/api/riders/'+id+'/approve',{method:'PATCH',body:JSON.stringify({decision})});toast(decision==='approve'?(lang==='ta'?'✅ Approve ஆச்சு, email அனுப்பப்பட்டது':'✅ Approved, email sent'):(lang==='ta'?'Reject ஆச்சு':'Rejected'));renderAdmin();}catch(e){toast(t('err'));}}
 
 function showSheet(){document.getElementById('sheet').classList.add('show');}
 function closeSheet(){document.getElementById('sheet').classList.remove('show');}
