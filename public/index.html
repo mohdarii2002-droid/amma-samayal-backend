@@ -199,18 +199,29 @@ function chooseRole(r){
   }
 }
 function backRole(){document.getElementById('loginForm').innerHTML='';document.getElementById('roleChoice').classList.remove('hide');}
-function sendRealOtp(){
+function resetRecaptcha(){
+  if(recaptchaVerifier){try{recaptchaVerifier.clear();}catch(x){}recaptchaVerifier=null;}
+  const c=document.getElementById('recaptcha-container');
+  if(c)c.innerHTML='';
+}
+async function sendRealOtp(){
   const n=(document.getElementById('li-name').value||'').trim()||'Customer';
   const p=(document.getElementById('li-phone').value||'').replace(/\D/g,'');
-  if(p.length<10){toast(lang==='ta'?'சரியான மொபைல் எண் கொடுங்க':'Enter valid 10-digit mobile');return;}
+  if(p.length!==10){toast(lang==='ta'?'சரியான 10 இலக்க மொபைல் எண் கொடுங்க':'Enter valid 10-digit mobile');return;}
   CUST_PENDING={name:n,phone:p};
   const btn=document.getElementById('otpbtn');btn.disabled=true;btn.textContent='...';
+  const resetBtn=()=>{btn.disabled=false;btn.textContent=lang==='ta'?'OTP அனுப்பு →':'Send OTP →';};
   try{
-    if(!recaptchaVerifier){recaptchaVerifier=new firebase.auth.RecaptchaVerifier('recaptcha-container',{size:'invisible'});}
-    firebase.auth().signInWithPhoneNumber('+91'+p,recaptchaVerifier)
-      .then(cr=>{confirmationResult=cr;showOtpInput();})
-      .catch(e=>{toast('OTP: '+(e.message||e.code));btn.disabled=false;btn.textContent=lang==='ta'?'OTP அனுப்பு →':'Send OTP →';if(recaptchaVerifier){try{recaptchaVerifier.clear();}catch(x){}recaptchaVerifier=null;}});
-  }catch(e){toast(e.message);btn.disabled=false;btn.textContent='Send OTP →';}
+    resetRecaptcha();
+    recaptchaVerifier=new firebase.auth.RecaptchaVerifier('recaptcha-container',{size:'invisible'});
+    await recaptchaVerifier.render();
+    confirmationResult=await firebase.auth().signInWithPhoneNumber('+91'+p,recaptchaVerifier);
+    showOtpInput();
+  }catch(e){
+    toast('OTP: '+(e.message||e.code||e));
+    resetBtn();
+    resetRecaptcha();
+  }
 }
 function showOtpInput(){
   const f=document.getElementById('loginForm');
