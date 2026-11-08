@@ -3,16 +3,27 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Amma Samayal — LIVE (real backend)</title>
+<title>Amma Samayal</title>
 <style>
   :root{--bg:#fff7ed;--card:#fff;--ink:#1f2937;--muted:#6b7280;--brand:#e4572e;--brand-dark:#c2410c;--accent:#16a34a;--soft:#fde4d8;--line:#f1e4da;--blue:#2563eb;--red:#dc2626;--gold:#f59e0b}
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
   body{font-family:"Segoe UI",system-ui,"Noto Sans Tamil",Roboto,sans-serif;background:#d7cdbf;color:var(--ink);display:flex;flex-direction:column;align-items:center;padding-bottom:30px}
-  .rolebar{position:sticky;top:0;z-index:40;width:100%;max-width:460px;background:#111827;padding:10px 12px;display:flex;gap:7px;align-items:center}
-  .rolebar .rl{flex:1;text-align:center;color:#cbd5e1;font-size:12px;font-weight:700;padding:9px 4px;border-radius:9px;cursor:pointer}
-  .rolebar .rl.on{background:var(--brand);color:#fff}
-  .rolebar .rl .e{display:block;font-size:17px;margin-bottom:1px}
-  .rolebar .gl{color:#cbd5e1;font-size:11px;font-weight:700;padding:8px;cursor:pointer;background:#1f2937;border-radius:8px}
+  .login{position:fixed;inset:0;background:linear-gradient(150deg,var(--brand),var(--brand-dark));z-index:90;display:flex;align-items:center;justify-content:center;padding:24px;overflow:auto}
+  .login-inner{width:100%;max-width:360px;text-align:center;color:#fff}
+  .login .logo{width:80px;height:80px;border-radius:22px;background:#fff;display:grid;place-items:center;font-size:42px;margin:0 auto 14px}
+  .login h1{font-size:26px;font-weight:800}
+  .login>.login-inner>p{opacity:.9;font-size:14px;margin:4px 0 16px}
+  .lang-row{font-size:13px;margin-bottom:20px;opacity:.95}
+  .lang-row span{cursor:pointer;font-weight:700;padding:4px 8px;text-decoration:underline}
+  .rolebtn{width:100%;background:#fff;color:var(--ink);border:none;border-radius:14px;padding:15px;margin-bottom:12px;cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;gap:2px;font-size:16px;font-weight:800;text-align:left}
+  .rolebtn small{font-size:12px;font-weight:600;color:var(--muted)}
+  .rolebtn.solid{align-items:center;background:#111827;color:#fff;flex-direction:row;justify-content:center;gap:8px}
+  .login input{width:100%;border:none;border-radius:12px;padding:14px;font-size:15px;margin-bottom:12px;font-family:inherit}
+  .login .lk{background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:10px;padding:8px 13px;font-size:18px;cursor:pointer;margin-bottom:14px}
+  .login .hint{font-size:12px;opacity:.85;margin:2px 0 12px}
+  .appbar{width:100%;max-width:460px;background:#111827;color:#fff;display:flex;justify-content:space-between;align-items:center;padding:10px 14px;position:sticky;top:0;z-index:45;font-size:14px;font-weight:700}
+  .appbar .right{display:flex;gap:8px}
+  .appbar .ab-btn{background:#374151;padding:6px 11px;border-radius:8px;font-size:12px;cursor:pointer}
   .live-banner{width:100%;max-width:460px;background:#052e16;color:#86efac;font-size:11px;padding:7px 12px;text-align:center;display:flex;align-items:center;justify-content:center;gap:6px}
   .dot{width:8px;height:8px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 0 rgba(34,197,94,.6);animation:pl 1.6s infinite}
   @keyframes pl{0%{box-shadow:0 0 0 0 rgba(34,197,94,.6)}70%{box-shadow:0 0 0 6px rgba(34,197,94,0)}}
@@ -73,27 +84,43 @@
   .loader{text-align:center;padding:40px 20px;color:var(--muted);font-size:13px}
   .spin{width:34px;height:34px;border:3px solid #eee;border-top-color:var(--brand);border-radius:50%;animation:sp 1s linear infinite;margin:0 auto 14px}
   @keyframes sp{to{transform:rotate(360deg)}}
-  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#111827;color:#fff;padding:10px 18px;border-radius:30px;font-size:13px;z-index:80;opacity:0;transition:.3s;max-width:90%}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#111827;color:#fff;padding:10px 18px;border-radius:30px;font-size:13px;z-index:95;opacity:0;transition:.3s;max-width:90%}
   .toast.show{opacity:1}
-  .hide{display:none}
+  .hide{display:none!important}
 </style>
 </head>
 <body>
-  <div class="rolebar">
-    <div class="rl on" data-r="cust" onclick="setRole('cust')"><span class="e">🍽️</span>Customer</div>
-    <div class="rl" data-r="cook" onclick="setRole('cook')"><span class="e">👩‍🍳</span>Cook</div>
-    <div class="rl" data-r="admin" onclick="setRole('admin')"><span class="e">🛠️</span>Admin</div>
-    <div class="gl" onclick="toggleLang()">🌐 <span id="lgl">EN</span></div>
+  <div class="login" id="loginScreen">
+    <div class="login-inner">
+      <div class="logo">🍲</div>
+      <h1>Amma Samayal</h1>
+      <p id="login-sub">Naan yaaru?</p>
+      <div class="lang-row">மொழி: <span onclick="setLoginLang('ta')">தமிழ்</span> | <span onclick="setLoginLang('en')">English</span></div>
+      <div id="roleChoice">
+        <button class="rolebtn" onclick="chooseRole('customer')">🍽️ <span><b id="r-cust">Customer</b><br><small id="r-custs">Order food</small></span></button>
+        <button class="rolebtn" onclick="chooseRole('cook')">👩‍🍳 <span><b id="r-cook">Cook Partner</b><br><small id="r-cooks">Sell your food</small></span></button>
+      </div>
+      <div id="loginForm"></div>
+    </div>
   </div>
-  <div class="live-banner"><span class="dot"></span> <span id="lbl-live">LIVE — real backend (Render). Data server-la save aagum.</span></div>
-  <div class="phone"><div id="view"><div class="loader"><div class="spin"></div><span id="bootmsg">Backend-ஐ connect pannudhu... (first time ~30 sec aagalam, free server wake aagudhu)</span></div></div></div>
+
+  <div class="appbar hide" id="appbar">
+    <span id="ab-role"></span>
+    <div class="right">
+      <div class="ab-btn" onclick="toggleLang()">🌐 <span id="lgl">EN</span></div>
+      <div class="ab-btn" onclick="logout()" id="ab-logout">Logout</div>
+    </div>
+  </div>
+  <div class="live-banner hide" id="liveban"><span class="dot"></span> <span id="lbl-live">LIVE — real backend. Data server-la save aagum.</span></div>
+  <div class="phone hide" id="phoneWrap"><div id="view"></div></div>
   <div class="sheet" id="sheet"><div class="inner" id="sheetInner"></div></div>
   <div class="toast" id="toast"></div>
 
 <script>
 const API='';
-const CUST_PHONE='demo-user';
-const LOGGED_COOK=1;
+let CUST_PHONE=null;
+let LOGGED_COOK=null;
+let CURRENT=null;
 async function api(path, opts={}){
   const headers={};
   if(opts.body) headers['Content-Type']='application/json';
@@ -113,31 +140,64 @@ const T={
   track:{ta:"ட்ராக் 🛵",en:"Track 🛵"},myord:{ta:"என் ஆர்டர்",en:"My Orders"},noord:{ta:"ஆர்டர் இல்லை",en:"No orders"},
   trackt:{ta:"ட்ராக்கிங் 🛵",en:"Tracking 🛵"},rate:{ta:"மதிப்பிடு ⭐",en:"Rate ⭐"},rateq:{ta:"எப்படி இருந்தது?",en:"How was it?"},
   submit:{ta:"சமர்ப்பி",en:"Submit"},thanks:{ta:"நன்றி! 🙏",en:"Thanks! 🙏"},reorder:{ta:"மீண்டும்",en:"Re-order"},
-  cookhi:{ta:"வணக்கம், சமையல்காரரே 👩‍🍳",en:"Hi, Cook 👩‍🍳"},orders:{ta:"ஆர்டர்கள்",en:"Orders"},mymenu:{ta:"மெனு",en:"Menu"},
+  cookhi:{ta:"வணக்கம்",en:"Hi"},orders:{ta:"ஆர்டர்கள்",en:"Orders"},mymenu:{ta:"மெனு",en:"Menu"},
   accept:{ta:"ஏற்று ✓",en:"Accept ✓"},reject:{ta:"நிராகரி",en:"Reject"},ready:{ta:"தயார் 🛵",en:"Ready 🛵"},markdel:{ta:"டெலிவர் ஆச்சு ✓",en:"Delivered ✓"},
   adddish:{ta:"+ புதிய உணவு",en:"+ Add dish"},dname:{ta:"பெயர்",en:"Name"},ddesc:{ta:"விளக்கம்",en:"Description"},dprice:{ta:"விலை ₹",en:"Price ₹"},save:{ta:"சேமி",en:"Save"},
   waiting:{ta:"ஆர்டர் வரும்...",en:"Waiting for orders..."},rider:{ta:"டெலிவரி நபர்",en:"Delivery person"},call:{ta:"அழை",en:"Call"},
   admintitle:{ta:"அட்மின் 🛠️",en:"Admin 🛠️"},live:{ta:"நேரடி ஆர்டர்",en:"Live orders"},allcooks:{ta:"சமையல்காரர்",en:"All cooks"},reviews:{ta:"விமர்சனம் 🚩",en:"Reviews 🚩"},
   lock:{ta:"🔒",en:"🔒"},unlock:{ta:"🔓",en:"🔓"},total:{ta:"மொத்தம்",en:"Total"},loading:{ta:"ஏற்றுகிறது...",en:"Loading..."},
-  liveb:{ta:"LIVE — நிஜ backend (Render). தரவு server-la சேமிக்கும்.",en:"LIVE — real backend (Render). Data saved on server."},
+  liveb:{ta:"LIVE — நிஜ backend. தரவு server-la சேமிக்கும்.",en:"LIVE — real backend. Data saved on server."},
   veg:{ta:"சைவம்",en:"Veg"},non:{ta:"அசைவம்",en:"Non-veg"},err:{ta:"பிழை — மீண்டும் முயற்சி",en:"Error — try again"},
+  logout:{ta:"வெளியேறு",en:"Logout"},
 };
 function t(k){return T[k]?T[k][lang]:k;}
 const stepTxt={0:{ta:["ஆர்டர் சென்றது","கூக் பார்க்கிறார்"],en:["Order placed","Cook notified"]},1:{ta:["கூக் ஏற்றார்","சமைக்கிறார்"],en:["Accepted","Cooking"]},2:{ta:["சமைக்கிறார்","தயாராகிறது"],en:["Cooking","Preparing"]},3:{ta:["டெலிவரி 🛵","வழியில்"],en:["Out for delivery 🛵","On the way"]},4:{ta:["வந்தது","சாப்பிடுங்க 😋"],en:["Delivered","Enjoy 😋"]}};
-function toggleLang(){lang=lang==='en'?'ta':'en';document.getElementById('lgl').textContent=lang.toUpperCase();document.getElementById('lbl-live').textContent=t('liveb');render();}
+function toggleLang(){lang=lang==='en'?'ta':'en';document.getElementById('lgl').textContent=lang.toUpperCase();document.getElementById('lbl-live').textContent=t('liveb');document.getElementById('ab-logout').textContent=t('logout');render();}
+
+function setLoginLang(l){lang=l;applyLoginLabels();}
+function applyLoginLabels(){
+  const m={'login-sub':{ta:'நான் யார்?',en:'Who are you?'},'r-cust':{ta:'வாடிக்கையாளர்',en:'Customer'},'r-custs':{ta:'சாப்பாடு ஆர்டர்',en:'Order food'},'r-cook':{ta:'சமையல்காரர்',en:'Cook Partner'},'r-cooks':{ta:'உங்கள் உணவு விற்க',en:'Sell your food'},'r-admin':{ta:'உரிமையாளர்',en:'Owner'},'r-admins':{ta:'ஆப் நிர்வாகம்',en:'Manage app'}};
+  for(const id in m){const e=document.getElementById(id);if(e)e.textContent=m[id][lang];}
+  document.getElementById('lgl').textContent=lang.toUpperCase();
+}
+function chooseRole(r){
+  const f=document.getElementById('loginForm');
+  document.getElementById('roleChoice').classList.add('hide');
+  if(r==='customer'){
+    f.innerHTML=`<button class="lk" onclick="backRole()">←</button>
+      <input id="li-name" placeholder="${lang==='ta'?'உங்கள் பெயர்':'Your name'}">
+      <input id="li-phone" placeholder="${lang==='ta'?'மொபைல் எண்':'Mobile number'}" inputmode="numeric">
+      <button class="rolebtn solid" onclick="doCustomer()">${lang==='ta'?'உள்நுழை →':'Login →'}</button>`;
+  } else if(r==='cook'){
+    f.innerHTML=`<button class="lk" onclick="backRole()">←</button>
+      <p class="hint">${lang==='ta'?'சமையல்காரர் தேர்வு (demo)':'Pick cook (demo)'}</p>
+      <button class="rolebtn solid" onclick="doCook(1,'Lakshmi Amma')">👩🏽‍🍳 Lakshmi Amma</button>
+      <button class="rolebtn solid" onclick="doCook(2,'Fathima Kitchen')">🧕🏽 Fathima Kitchen</button>`;
+  } else {
+    f.innerHTML=`<button class="lk" onclick="backRole()">←</button>
+      <input id="li-pass" type="password" placeholder="${lang==='ta'?'அட்மின் கடவுச்சொல்':'Admin passcode'}">
+      <p class="hint">demo passcode: 1234</p>
+      <button class="rolebtn solid" onclick="doAdmin()">${lang==='ta'?'உள்நுழை →':'Login →'}</button>`;
+  }
+}
+function backRole(){document.getElementById('loginForm').innerHTML='';document.getElementById('roleChoice').classList.remove('hide');}
+function doCustomer(){const n=(document.getElementById('li-name').value||'').trim()||'Customer';const p=(document.getElementById('li-phone').value||'').trim();if(!p){toast(lang==='ta'?'மொபைல் எண் கொடுங்க':'Enter phone');return;}CUST_PHONE='cust-'+p;CURRENT={role:'cust',name:n};enter('cust','👤 '+n);}
+function doCook(id,name){LOGGED_COOK=id;CURRENT={role:'cook',name};enter('cook','👩‍🍳 '+name);}
+function doAdmin(){const p=(document.getElementById('li-pass').value||'').trim();if(p!=='1234'){toast(lang==='ta'?'தவறான கடவுச்சொல்':'Wrong passcode');return;}CURRENT={role:'admin',name:'Owner'};enter('admin','🛠️ Owner');}
+function enter(r,label){role=r;document.getElementById('loginScreen').classList.add('hide');document.getElementById('appbar').classList.remove('hide');document.getElementById('liveban').classList.remove('hide');document.getElementById('phoneWrap').classList.remove('hide');document.getElementById('ab-role').textContent=label;document.getElementById('lgl').textContent=lang.toUpperCase();document.getElementById('ab-logout').textContent=t('logout');document.getElementById('lbl-live').textContent=t('liveb');render();}
+function logout(){CURRENT=null;LOGGED_COOK=null;CUST_PHONE=null;closeSheet();document.getElementById('appbar').classList.add('hide');document.getElementById('liveban').classList.add('hide');document.getElementById('phoneWrap').classList.add('hide');document.getElementById('loginScreen').classList.remove('hide');backRole();}
 
 function custStage(o){return o.status==='new'?1:o.status==='cooking'?2:o.status==='out'?3:o.status==='delivered'?4:0;}
 let role='cust';
-function setRole(r){role=r;document.querySelectorAll('.rl').forEach(x=>x.classList.toggle('on',x.dataset.r===r));closeSheet();render();}
 function loading(){document.getElementById('view').innerHTML=`<div class="loader"><div class="spin"></div>${t('loading')}</div>`;}
-async function render(){ try{ role==='cust'?await renderCust():role==='cook'?await renderCook():await renderAdmin(); }
+async function render(){ if(!CURRENT)return; try{ role==='cust'?await renderCust():role==='cook'?await renderCook():await renderAdmin(); }
   catch(e){ document.getElementById('view').innerHTML=`<div class="loader">⚠️ ${t('err')}<br><small>${e.message}</small><br><button class="btn" style="margin-top:12px" onclick="render()">${t('loading')}</button></div>`; } }
 
 let cart={cookId:null,cook:null,menu:[],sel:{},plan:0};
 const plans=[{n:{ta:"ஒரு நாள்",en:"One day"},m:1},{n:{ta:"வாரம் (6+1)",en:"Weekly (6+1)"},m:5},{n:{ta:"மாதம்",en:"Monthly"},m:22}];
 async function renderCust(){
   loading();
-  const [cooks,myOrders]=await Promise.all([api('/api/cooks'),api('/api/orders?customerPhone='+CUST_PHONE)]);
+  const [cooks,myOrders]=await Promise.all([api('/api/cooks'),api('/api/orders?customerPhone='+encodeURIComponent(CUST_PHONE))]);
   document.getElementById('view').innerHTML=`
     <div class="top"><h1>🍲 Amma Samayal</h1><div class="sub">📍 Thiruvottiyur, Chennai</div></div>
     <div class="wrap">
@@ -189,16 +249,16 @@ async function placeOrder(){
   const items=Object.entries(cart.sel).map(([mid,q])=>{const m=cart.menu.find(x=>x.id==mid);return {name:m.name,qty:q,price:m.price};});
   const total=sub*plans[cart.plan].m;
   try{
-    const res=await api('/api/orders',{method:'POST',body:JSON.stringify({cookId:cart.cookId,customerName:'You',customerPhone:CUST_PHONE,items,total,plan:plans[cart.plan].n[lang]})});
+    const res=await api('/api/orders',{method:'POST',body:JSON.stringify({cookId:cart.cookId,customerName:CURRENT.name,customerPhone:CUST_PHONE,items,total,plan:plans[cart.plan].n[lang]})});
     document.getElementById('sheetInner').innerHTML=`<div style="text-align:center;padding:10px"><div style="width:70px;height:70px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;font-size:36px;margin:10px auto">✓</div>
-      <h2>${t('confirmed')}</h2><div class="meta" style="margin-top:6px">${cart.cook.name} · ₹${total}<br>${lang==='ta'?'Cook role-ku maathu → server-la order vandhurukkum!':'Switch to Cook → order is on the server!'}</div>
+      <h2>${t('confirmed')}</h2><div class="meta" style="margin-top:6px">${cart.cook.name} · ₹${total}</div>
       <button class="btn full" onclick="closeSheet();openTrack(${res.id})">${t('track')}</button>
       <button class="btn full" style="background:#fff;color:var(--brand);border:1.5px solid var(--brand)" onclick="closeSheet();render()">OK</button></div>`;
   }catch(e){toast(t('err'));btn.disabled=false;btn.textContent=t('confirm');}
 }
 async function openTrack(id){
   document.getElementById('sheetInner').innerHTML=`<div class="loader"><div class="spin"></div>${t('loading')}</div>`;showSheet();
-  const orders=await api('/api/orders?customerPhone='+CUST_PHONE);const o=orders.find(x=>x.id===id);const st=custStage(o);
+  const orders=await api('/api/orders?customerPhone='+encodeURIComponent(CUST_PHONE));const o=orders.find(x=>x.id===id);const st=custStage(o);
   document.getElementById('sheetInner').innerHTML=`
     <div class="sh-head"><button class="back" onclick="closeSheet()">←</button><h2>${t('trackt')}</h2></div>
     <div class="meta" style="margin-bottom:12px">#${o.id} · ₹${o.total}</div>
@@ -216,7 +276,7 @@ async function openRate(id){rv=0;
 function setStar(n){rv=n;document.querySelectorAll('#stars span').forEach((s,i)=>s.classList.toggle('on',i<n));}
 async function subRate(id){const b=document.getElementById('rbtn');b.disabled=true;b.textContent='...';
   try{await api('/api/orders/'+id+'/rating',{method:'POST',body:JSON.stringify({stars:rv||5,remark:document.getElementById('rtext').value})});
-    document.getElementById('sheetInner').innerHTML=`<div style="text-align:center;padding:14px"><div style="font-size:40px">⭐</div><h2>${rv||5}/5</h2><div class="meta" style="margin-top:8px">${t('thanks')}<br>${lang==='ta'?'Admin role-la review varum':'Shows in Admin reviews'}</div><button class="btn g full" onclick="closeSheet();render()">OK</button></div>`;
+    document.getElementById('sheetInner').innerHTML=`<div style="text-align:center;padding:14px"><div style="font-size:40px">⭐</div><h2>${rv||5}/5</h2><div class="meta" style="margin-top:8px">${t('thanks')}</div><button class="btn g full" onclick="closeSheet();render()">OK</button></div>`;
   }catch(e){toast(t('err'));b.disabled=false;b.textContent=t('submit');}}
 
 let cookTab='orders';
@@ -225,7 +285,7 @@ async function renderCook(){
   const [orders,menu]=await Promise.all([api('/api/orders?cookId='+LOGGED_COOK),api('/api/cooks/'+LOGGED_COOK+'/menu')]);
   const earn=orders.filter(o=>o.status==='delivered').reduce((a,o)=>a+o.total,0);
   document.getElementById('view').innerHTML=`
-    <div class="top cook"><h1>${t('cookhi')}</h1><div class="sub">📍 Thiruvottiyur · ${orders.filter(o=>o.status==='new').length} ${lang==='ta'?'புதிய':'new'}</div></div>
+    <div class="top cook"><h1>${t('cookhi')}, ${CURRENT.name} 👩‍🍳</h1><div class="sub">📍 Thiruvottiyur · ${orders.filter(o=>o.status==='new').length} ${lang==='ta'?'புதிய':'new'}</div></div>
     <div class="wrap">
       <div class="kpis"><div class="kpi"><b>${orders.filter(o=>o.status==='new').length}</b><small>${lang==='ta'?'புதிய':'New'}</small></div><div class="kpi"><b>₹${earn}</b><small>${lang==='ta'?'வருமானம்':'Earned'}</small></div><div class="kpi"><b>${orders.filter(o=>o.status==='delivered').length}</b><small>${lang==='ta'?'முடிந்தது':'Done'}</small></div></div>
       <div style="display:flex;gap:7px;background:#f3f4f6;border-radius:10px;padding:5px;margin-bottom:12px">
@@ -238,14 +298,14 @@ async function renderCook(){
 }
 function renderCookOrders(orders){
   const act=orders.filter(o=>o.status!=='delivered'&&o.status!=='rejected');
-  if(!act.length)return `<div class="empty">${t('waiting')} 🕐<br><small>${lang==='ta'?'Customer role-la order panni Refresh pannு':'Order in Customer, then Refresh'}</small></div>`;
+  if(!act.length)return `<div class="empty">${t('waiting')} 🕐</div>`;
   return act.map(o=>`<div class="card" style="border-left:4px solid ${o.status==='new'?'var(--brand)':o.status==='out'?'var(--blue)':'var(--gold)'}">
-      <div style="display:flex;justify-content:space-between"><div><b>#${o.id}</b><div class="meta">${o.plan||''}</div></div><span class="badge ${o.status==='new'?'b-new':o.status==='cooking'?'b-cook':'b-out'}">${o.status==='new'?'🔔 NEW':o.status==='cooking'?'🍳':'🛵'}</span></div>
+      <div style="display:flex;justify-content:space-between"><div><b>#${o.id}</b><div class="meta">${o.customer_name||''} · ${o.plan||''}</div></div><span class="badge ${o.status==='new'?'b-new':o.status==='cooking'?'b-cook':'b-out'}">${o.status==='new'?'🔔 NEW':o.status==='cooking'?'🍳':'🛵'}</span></div>
       <div style="margin:8px 0;font-size:13px">${o.items.map(i=>`<div style="display:flex;justify-content:space-between;padding:2px 0"><span>${i.name} ×${i.qty}</span><span>₹${i.price*i.qty}</span></div>`).join('')}</div>
       <div class="foot"><span class="meta">${t('total')}</span><b>₹${o.total}</b></div>
       ${o.status==='new'?`<div style="display:flex;gap:8px;margin-top:10px"><button class="mini2" style="flex:1;padding:10px;background:#fee2e2;color:var(--red)" onclick="cookAct(${o.id},'rejected')">${t('reject')}</button><button class="btn" style="flex:1" onclick="cookAct(${o.id},'cooking')">${t('accept')}</button></div>`:''}
       ${o.status==='cooking'?`<button class="btn full" style="background:var(--gold)" onclick="cookAct(${o.id},'out')">${t('ready')}</button>`:''}
-      ${o.status==='out'?`<div class="deliv" style="margin-top:10px"><div style="display:flex;align-items:center;gap:9px"><div class="av" style="width:38px;height:38px;background:#dbeafe;font-size:18px">🛵</div><div style="flex:1"><small style="color:var(--muted);font-size:11px">${t('rider')}</small><br><b>${o.rider_name}</b> · ${o.rider_phone}</div><button class="callb" onclick="alert('Demo call ${o.rider_phone}')">📞</button></div></div><button class="btn g full" onclick="cookAct(${o.id},'delivered')">${t('markdel')}</button>`:''}
+      ${o.status==='out'?`<div class="deliv" style="margin-top:10px"><div style="display:flex;align-items:center;gap:9px"><div class="av" style="width:38px;height:38px;background:#dbeafe;font-size:18px">🛵</div><div style="flex:1"><small style="color:var(--muted);font-size:11px">${t('rider')}</small><br><b>${o.rider_name}</b> · ${o.rider_phone}</div><button class="callb" onclick="alert('Demo call ${o.rider_phone}')">📞 ${t('call')}</button></div></div><button class="btn g full" onclick="cookAct(${o.id},'delivered')">${t('markdel')}</button>`:''}
     </div>`).join('');
 }
 async function cookAct(id,s){
@@ -267,13 +327,12 @@ function openAdd(){addVeg=true;
     <label>${t('ddesc')}</label><input id="dd" placeholder="${lang==='ta'?'மிளகு ரசம்':'Pepper rasam'}">
     <label>${t('dprice')}</label><input id="dp" type="number" placeholder="50">
     <div style="display:flex;gap:9px;margin-top:12px"><div id="v1" class="plan on" style="flex:1;justify-content:center" onclick="addVeg=true;v1.classList.add('on');v2.classList.remove('on')">🟢 ${t('veg')}</div><div id="v2" class="plan" style="flex:1;justify-content:center" onclick="addVeg=false;v2.classList.add('on');v1.classList.remove('on')">🔴 ${t('non')}</div></div>
-    <button class="btn g full" id="savb" onclick="saveDish()">${t('save')}</button>
-    <div class="deliv" style="margin-top:12px;background:#f0fdf4;border-color:#bbf7d0;color:#166534">🔗 ${lang==='ta'?'Save panna → server-la save aagi Customer role-la varum!':'Save → stored on server, shows in Customer!'}</div>`;showSheet();}
+    <button class="btn g full" id="savb" onclick="saveDish()">${t('save')}</button>`;showSheet();}
 async function saveDish(){const n=document.getElementById('dn').value.trim();const d=document.getElementById('dd').value.trim();const p=parseInt(document.getElementById('dp').value)||0;
   if(!n||!p){toast(lang==='ta'?'பெயர் & விலை':'Name & price');return;}
   const b=document.getElementById('savb');b.disabled=true;b.textContent='...';
   try{await api('/api/cooks/'+LOGGED_COOK+'/menu',{method:'POST',body:JSON.stringify({name:n,description:d,price:p,veg:addVeg?1:0})});
-    closeSheet();cookTab='menu';toast('✓ Saved on server');renderCook();}
+    closeSheet();cookTab='menu';toast('✓ Saved');renderCook();}
   catch(e){toast(t('err'));b.disabled=false;b.textContent=t('save');}}
 
 async function renderAdmin(){
@@ -301,7 +360,15 @@ function showSheet(){document.getElementById('sheet').classList.add('show');}
 function closeSheet(){document.getElementById('sheet').classList.remove('show');}
 document.getElementById('sheet').addEventListener('click',e=>{if(e.target.id==='sheet')closeSheet();});
 
-render();
+function initLogin(){
+  applyLoginLabels();
+  if(location.hash==='#owner'||location.hash==='#admin'){
+    document.getElementById('login-sub').textContent = lang==='ta'?'உரிமையாளர் உள்நுழைவு 🛠️':'Owner login 🛠️';
+    document.getElementById('roleChoice').classList.add('hide');
+    chooseRole('admin');
+  }
+}
+initLogin();
 </script>
 </body>
 </html>
