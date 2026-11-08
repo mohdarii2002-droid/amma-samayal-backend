@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Amma Samayal — Owner Dashboard</title>
+<style>
+  :root{--bg:#f6f8fb;--card:#fff;--ink:#0f172a;--muted:#64748b;--brand:#e4572e;--brand2:#16a34a;--line:#e9eef3;--soft:#fef2ee;--blue:#2563eb;--amber:#f59e0b;--red:#dc2626;--green:#16a34a;--sidebar:#1f2937}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Segoe UI",system-ui,"Noto Sans Tamil",Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+  .gate{position:fixed;inset:0;background:linear-gradient(140deg,#1f2937,#111827);z-index:100;display:flex;align-items:center;justify-content:center;padding:24px}
+  .gate-box{background:#fff;border-radius:18px;padding:30px 26px;width:100%;max-width:340px;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.3)}
+  .gate .logo{width:66px;height:66px;border-radius:18px;background:var(--brand);display:grid;place-items:center;font-size:34px;margin:0 auto 14px;color:#fff}
+  .gate h1{font-size:19px;margin-bottom:4px}.gate p{font-size:13px;color:var(--muted);margin-bottom:18px}
+  .gate input{width:100%;border:1.5px solid var(--line);border-radius:11px;padding:13px;font-size:16px;text-align:center;letter-spacing:4px;margin-bottom:12px;font-family:inherit}
+  .gate button{width:100%;background:var(--brand);color:#fff;border:none;border-radius:11px;padding:13px;font-weight:800;font-size:15px;cursor:pointer}
+  .gate .hint{font-size:11px;color:var(--muted);margin-top:10px}
+  .shell{display:flex;min-height:100vh}
+  .side{width:230px;background:var(--sidebar);color:#cbd5e1;padding:20px 14px;flex-shrink:0;position:sticky;top:0;height:100vh}
+  .logo2{display:flex;align-items:center;gap:9px;font-weight:800;font-size:17px;color:#fff;margin-bottom:22px;padding:0 6px}
+  .logo2 .l{width:34px;height:34px;border-radius:10px;background:var(--brand);display:grid;place-items:center;font-size:18px}
+  .nav a{display:flex;align-items:center;gap:11px;padding:11px 12px;border-radius:9px;font-size:14px;color:#cbd5e1;text-decoration:none;margin-bottom:3px;cursor:pointer}
+  .nav a.on{background:var(--brand);color:#fff;font-weight:700}.nav a:hover:not(.on){background:#374151}
+  .side .foot{position:absolute;bottom:16px;left:14px;right:14px;font-size:11px;color:#94a3b8;background:#111827;padding:11px;border-radius:9px}
+  .main{flex:1;padding:22px 28px;overflow:auto}
+  .head{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px;flex-wrap:wrap;gap:12px}
+  .head h1{font-size:22px}.head .sub{font-size:13px;color:var(--muted);margin-top:2px}
+  .head .right{display:flex;align-items:center;gap:10px}
+  .hbtn{background:#fff;border:1px solid var(--line);border-radius:10px;padding:9px 14px;font-size:13px;font-weight:700;cursor:pointer;color:var(--ink)}
+  .hbtn.brand{background:var(--brand);color:#fff;border-color:var(--brand)}
+  .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:22px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px}
+  .kpi .ic{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-size:20px;margin-bottom:12px}
+  .kpi b{font-size:26px;display:block}.kpi small{font-size:12px;color:var(--muted)}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;margin-bottom:20px}
+  .panel h2{font-size:15px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between}
+  .panel h2 .pill{font-size:11px;background:var(--soft);color:var(--brand);padding:3px 11px;border-radius:20px;font-weight:700}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;color:var(--muted);font-weight:600;font-size:12px;padding:10px 12px;border-bottom:1px solid var(--line)}
+  td{padding:12px;border-bottom:1px solid var(--line)}
+  tr:last-child td{border-bottom:none}
+  .st{font-size:11px;font-weight:800;padding:3px 11px;border-radius:20px;display:inline-block}
+  .st.new{background:#ffedd5;color:#c2410c}.st.cooking{background:#fef9c3;color:#a16207}.st.out{background:#e0f2fe;color:#0369a1}.st.delivered{background:#dcfce7;color:#15803d}.st.lock{background:#fee2e2;color:#b91c1c}
+  .mini{border:none;padding:6px 13px;border-radius:8px;font-weight:700;font-size:12px;cursor:pointer}
+  .lockb{background:#1f2937;color:#fff}.unlockb{background:#fde68a;color:#92400e}
+  .two{display:grid;grid-template-columns:1.5fr 1fr;gap:20px}
+  .review{border:1px solid var(--line);border-radius:12px;padding:13px;margin-bottom:11px}.review.bad{border-color:#fecaca;background:#fff5f5}
+  .flag{font-size:10px;font-weight:800;padding:3px 10px;border-radius:20px;background:#fee2e2;color:#b91c1c}
+  .bar{display:flex;align-items:flex-end;gap:10px;height:130px;padding:10px 4px 0}
+  .bar .col{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px}.bar .b{width:100%;background:linear-gradient(var(--brand),#f6a07e);border-radius:6px 6px 0 0;min-height:4px}.bar small{font-size:10px;color:var(--muted)}
+  .empty{text-align:center;color:var(--muted);padding:26px;font-size:13px}
+  .loader{text-align:center;padding:50px;color:var(--muted)}
+  .spin{width:34px;height:34px;border:3px solid #eee;border-top-color:var(--brand);border-radius:50%;animation:sp 1s linear infinite;margin:0 auto 14px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .hide{display:none!important}
+  @media(max-width:860px){.cards{grid-template-columns:repeat(2,1fr)}.two{grid-template-columns:1fr}.side{width:60px}.logo2 span:not(.l),.nav a span:not(.i),.side .foot{display:none}}
+</style>
+</head>
+<body>
+  <div class="gate" id="gate">
+    <div class="gate-box">
+      <div class="logo">🍲</div>
+      <h1>Owner Dashboard</h1>
+      <p id="g-sub">Amma Samayal · Admin login</p>
+      <input id="pass" type="password" inputmode="numeric" placeholder="• • • •" maxlength="8" onkeydown="if(event.key==='Enter')doGate()">
+      <button onclick="doGate()" id="g-btn">Login</button>
+      <div class="hint">demo passcode: 1234</div>
+    </div>
+  </div>
+
+  <div class="shell hide" id="shell">
+    <aside class="side">
+      <div class="logo2"><span class="l">🍲</span><span>Amma Samayal</span></div>
+      <nav class="nav">
+        <a class="on" data-p="dash" onclick="nav('dash',this)"><span class="i">📊</span><span id="n-dash">Dashboard</span></a>
+        <a data-p="orders" onclick="nav('orders',this)"><span class="i">📦</span><span id="n-orders">Orders</span></a>
+        <a data-p="cooks" onclick="nav('cooks',this)"><span class="i">👩‍🍳</span><span id="n-cooks">Cooks</span></a>
+        <a data-p="reviews" onclick="nav('reviews',this)"><span class="i">⭐</span><span id="n-reviews">Reviews</span></a>
+      </nav>
+      <div class="foot">Owner panel · v1<br>🟢 LIVE backend</div>
+    </aside>
+    <main class="main">
+      <div class="head">
+        <div><h1 id="pageTitle">Dashboard 📊</h1><div class="sub" id="pageSub">Amma Samayal — Thiruvottiyur</div></div>
+        <div class="right">
+          <button class="hbtn" onclick="toggleLang()">🌐 <span id="lgl">EN</span></button>
+          <button class="hbtn" onclick="loadAll()">🔄 <span id="b-refresh">Refresh</span></button>
+          <button class="hbtn" onclick="logout()" id="b-logout">Logout</button>
+        </div>
+      </div>
+      <div id="content"><div class="loader"><div class="spin"></div>Loading...</div></div>
+    </main>
+  </div>
+
+<script>
+const API='';
+async function api(path, opts={}){
+  const headers={};if(opts.body)headers['Content-Type']='application/json';
+  const r=await fetch(API+path,{headers,...opts});
+  if(!r.ok) throw new Error((await r.json().catch(()=>({}))).error||('HTTP '+r.status));
+  return r.status===204?null:r.json();
+}
+let lang='en';
+const T={
+  dash:{ta:'டாஷ்போர்டு',en:'Dashboard'},orders:{ta:'ஆர்டர்கள்',en:'Orders'},cooks:{ta:'சமையல்காரர்',en:'Cooks'},reviews:{ta:'விமர்சனம்',en:'Reviews'},
+  refresh:{ta:'புதுப்பி',en:'Refresh'},logout:{ta:'வெளியேறு',en:'Logout'},
+  k_orders:{ta:'மொத்த ஆர்டர்',en:'Total orders'},k_comm:{ta:'கமிஷன் (15%)',en:'Commission (15%)'},k_cooks:{ta:'சமையல்காரர்',en:'Cooks'},k_cust:{ta:'வாடிக்கையாளர்',en:'Customers'},
+  liveorders:{ta:'நேரடி ஆர்டர்கள்',en:'Live orders'},weekrev:{ta:'வார வருமானம் 📈',en:'Weekly revenue 📈'},
+  allcooks:{ta:'அனைத்து சமையல்காரர்',en:'All cooks'},badrev:{ta:'விமர்சனம் & தரம் 🚩',en:'Reviews & quality 🚩'},
+  th_cust:{ta:'வாடிக்கையாளர்',en:'Customer'},th_cook:{ta:'சமையல்காரர்',en:'Cook'},th_amt:{ta:'தொகை',en:'Amount'},th_comm:{ta:'கமிஷன்',en:'Commission'},th_status:{ta:'நிலை',en:'Status'},th_action:{ta:'செயல்',en:'Action'},th_ord:{ta:'ஆர்டர்',en:'Orders'},th_rating:{ta:'மதிப்பீடு',en:'Rating'},th_name:{ta:'பெயர்',en:'Name'},
+  noord:{ta:'ஆர்டர் இல்லை',en:'No orders yet'},norev:{ta:'விமர்சனம் இல்லை',en:'No reviews yet'},attention:{ta:'🚩 கவனம் தேவை',en:'🚩 Needs attention'},
+  wrongpass:{ta:'தவறான கடவுச்சொல்',en:'Wrong passcode'},
+};
+function t(k){return T[k]?T[k][lang]:k;}
+let DATA={orders:[],reviews:[],cooks:[]};
+let page='dash';
+function doGate(){
+  const p=document.getElementById('pass').value.trim();
+  if(p!=='1234'){document.getElementById('pass').value='';document.getElementById('g-btn').textContent=t('wrongpass');setTimeout(()=>document.getElementById('g-btn').textContent='Login',1500);return;}
+  document.getElementById('gate').classList.add('hide');
+  document.getElementById('shell').classList.remove('hide');
+  loadAll();
+}
+function logout(){document.getElementById('shell').classList.add('hide');document.getElementById('gate').classList.remove('hide');document.getElementById('pass').value='';}
+function toggleLang(){lang=lang==='en'?'ta':'en';document.getElementById('lgl').textContent=lang.toUpperCase();applyLabels();render();}
+function applyLabels(){
+  const m={'n-dash':'dash','n-orders':'orders','n-cooks':'cooks','n-reviews':'reviews','b-refresh':'refresh','b-logout':'logout'};
+  for(const id in m){const e=document.getElementById(id);if(e)e.textContent=t(m[id]);}
+}
+function nav(p,el){page=p;document.querySelectorAll('.nav a').forEach(a=>a.classList.remove('on'));el.classList.add('on');render();}
+async function loadAll(){
+  document.getElementById('content').innerHTML=`<div class="loader"><div class="spin"></div>Loading...</div>`;
+  try{
+    const [orders,reviews,cooks]=await Promise.all([api('/api/orders'),api('/api/reviews'),api('/api/cooks')]);
+    DATA={orders,reviews,cooks};render();
+  }catch(e){document.getElementById('content').innerHTML=`<div class="empty">⚠️ ${e.message}<br><button class="hbtn brand" style="margin-top:12px" onclick="loadAll()">Retry</button></div>`;}
+}
+function statusLabel(o){return o.locked?`<span class="st lock">🔒 Locked</span>`:`<span class="st ${o.status}">${o.status}</span>`;}
+function render(){
+  applyLabels();
+  const titles={dash:['Dashboard 📊',t('dash')],orders:['📦 '+t('orders'),t('orders')],cooks:['👩‍🍳 '+t('cooks'),t('cooks')],reviews:['⭐ '+t('reviews'),t('reviews')]};
+  document.getElementById('pageTitle').textContent=lang==='ta'?titles[page][1]:titles[page][0];
+  const c=document.getElementById('content');
+  if(page==='dash')c.innerHTML=viewDash();
+  else if(page==='orders')c.innerHTML=viewOrders();
+  else if(page==='cooks')c.innerHTML=viewCooks();
+  else c.innerHTML=viewReviews();
+}
+function kpis(){
+  const o=DATA.orders;const comm=o.reduce((a,x)=>a+Math.round(x.total*0.15),0);
+  const custs=new Set(o.map(x=>x.customer_phone)).size;
+  return `<div class="cards">
+    <div class="kpi"><div class="ic" style="background:#ffedd5">📦</div><b>${o.length}</b><small>${t('k_orders')}</small></div>
+    <div class="kpi"><div class="ic" style="background:#dcfce7">💰</div><b>₹${comm}</b><small>${t('k_comm')}</small></div>
+    <div class="kpi"><div class="ic" style="background:#e0f2fe">👩‍🍳</div><b>${DATA.cooks.length}</b><small>${t('k_cooks')}</small></div>
+    <div class="kpi"><div class="ic" style="background:#fae8ff">👥</div><b>${custs}</b><small>${t('k_cust')}</small></div>
+  </div>`;
+}
+function ordersTable(list){
+  if(!list.length)return `<div class="empty">${t('noord')}</div>`;
+  return `<table><tr><th>#</th><th>${t('th_cust')}</th><th>${t('th_cook')}</th><th>${t('th_amt')}</th><th>${t('th_comm')}</th><th>${t('th_status')}</th><th>${t('th_action')}</th></tr>
+    ${list.map(o=>`<tr><td><b>${o.id}</b></td><td>${o.customer_name||'-'}</td><td>Cook #${o.cook_id}</td><td>₹${o.total}</td><td style="color:var(--brand2);font-weight:700">₹${Math.round(o.total*0.15)}</td><td>${statusLabel(o)}</td>
+      <td><button class="mini ${o.locked?'unlockb':'lockb'}" onclick="toggleLock(${o.id},${o.locked?0:1})">${o.locked?'🔓 Unlock':'🔒 Lock'}</button></td></tr>`).join('')}</table>`;
+}
+function viewDash(){
+  return kpis()+`<div class="two">
+    <div class="panel"><h2>${t('liveorders')} <span class="pill">${DATA.orders.length}</span></h2>${ordersTable(DATA.orders.slice(0,8))}</div>
+    <div class="panel"><h2>${t('weekrev')}</h2><div class="bar">${[50,65,45,80,70,95,88].map(h=>`<div class="col"><div class="b" style="height:${h}%"></div></div>`).join('')}</div>
+      <div style="text-align:center;margin-top:12px;font-size:13px;color:var(--muted)">${t('k_comm')}: <b style="color:var(--ink)">₹${DATA.orders.reduce((a,x)=>a+Math.round(x.total*0.15),0)}</b></div></div>
+  </div>`;
+}
+function viewOrders(){return `<div class="panel"><h2>${t('liveorders')} <span class="pill">${DATA.orders.length}</span></h2>${ordersTable(DATA.orders)}</div>`;}
+function viewCooks(){
+  return `<div class="panel"><h2>${t('allcooks')} <span class="pill">${DATA.cooks.length}</span></h2>
+    <table><tr><th>#</th><th>${t('th_name')}</th><th>${t('th_rating')}</th><th>${t('th_ord')}</th></tr>
+    ${DATA.cooks.map(c=>{const co=DATA.orders.filter(o=>o.cook_id===c.id).length;return `<tr><td>${c.id}</td><td><b>${c.name}</b> <span style="color:var(--muted)">· ${c.area||''}</span></td><td>★ ${c.rating}</td><td>${co}</td></tr>`;}).join('')}</table></div>`;
+}
+function viewReviews(){
+  const rv=DATA.reviews;
+  if(!rv.length)return `<div class="panel"><h2>${t('badrev')}</h2><div class="empty">${t('norev')}</div></div>`;
+  return `<div class="panel"><h2>${t('badrev')} <span class="pill">${rv.filter(r=>r.stars<=2).length} 🚩</span></h2>
+    ${rv.map(o=>{const bad=o.stars<=2;return `<div class="review ${bad?'bad':''}"><div style="display:flex;justify-content:space-between;align-items:center"><div><b>Cook #${o.cook_id}</b> · Order #${o.id}</div><span style="color:var(--amber);font-size:15px">${'★'.repeat(o.stars)}${'☆'.repeat(5-o.stars)}</span></div>
+      ${o.remark?`<div style="font-size:13px;color:#374151;margin:6px 0">"${o.remark}"</div>`:''}
+      ${bad?`<span class="flag">${t('attention')}</span>`:''}</div>`;}).join('')}</div>`;
+}
+async function toggleLock(id,v){try{await api('/api/orders/'+id+'/lock',{method:'PATCH',body:JSON.stringify({locked:v})});loadAll();}catch(e){alert(e.message);}}
+applyLabels();
+document.getElementById('pass').focus();
+</script>
+</body>
+</html>
