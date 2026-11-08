@@ -201,8 +201,8 @@ function chooseRole(r){
 function backRole(){document.getElementById('loginForm').innerHTML='';document.getElementById('roleChoice').classList.remove('hide');}
 function resetRecaptcha(){
   if(recaptchaVerifier){try{recaptchaVerifier.clear();}catch(x){}recaptchaVerifier=null;}
-  const c=document.getElementById('recaptcha-container');
-  if(c)c.innerHTML='';
+  const old=document.getElementById('recaptcha-container');
+  if(old&&old.parentNode){const fresh=document.createElement('div');fresh.id='recaptcha-container';old.parentNode.replaceChild(fresh,old);}
 }
 async function sendRealOtp(){
   const n=(document.getElementById('li-name').value||'').trim()||'Customer';
