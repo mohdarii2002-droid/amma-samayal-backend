@@ -92,6 +92,10 @@
   @keyframes sp{to{transform:rotate(360deg)}}
   .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#111827;color:#fff;padding:10px 18px;border-radius:30px;font-size:13px;z-index:95;opacity:0;transition:.3s;max-width:90%}
   .toast.show{opacity:1}
+  .bignote{position:fixed;top:-140px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#17794a,#0b3d26);color:#fff;padding:14px 22px;border-radius:14px;font-size:14px;font-weight:800;z-index:120;box-shadow:0 12px 34px rgba(0,0,0,.35);transition:top .45s cubic-bezier(.2,.9,.3,1.2);max-width:92%;text-align:center;display:flex;align-items:center;gap:8px}
+  .bignote.show{top:16px}
+  .bignote .bell{animation:ring .8s ease-in-out 2}
+  @keyframes ring{0%,100%{transform:rotate(0)}20%{transform:rotate(16deg)}40%{transform:rotate(-14deg)}60%{transform:rotate(10deg)}80%{transform:rotate(-6deg)}}
   .hide{display:none!important}
 </style>
 </head>
@@ -125,6 +129,7 @@
   <div class="phone hide" id="phoneWrap"><div id="view"></div></div>
   <div class="sheet" id="sheet"><div class="inner" id="sheetInner"></div></div>
   <div class="toast" id="toast"></div>
+  <div class="bignote" id="bignote"></div>
   <div id="recaptcha-container"></div>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
@@ -143,6 +148,51 @@ let recaptchaVerifier=null;
 function saveSession(s){try{localStorage.setItem('amma_session',JSON.stringify(s));}catch(e){}}
 function clearSession(){try{localStorage.removeItem('amma_session');}catch(e){}}
 function getSession(){try{return JSON.parse(localStorage.getItem('amma_session')||'null');}catch(e){return null;}}
+/* ---- sound + popup notifications ---- */
+let audioCtx=null;
+function initAudio(){try{if(!audioCtx)audioCtx=new (window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==='suspended')audioCtx.resume();}catch(e){}}
+function beep(times){times=times||2;try{initAudio();if(!audioCtx)return;let t=audioCtx.currentTime;for(let i=0;i<times;i++){const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type='sine';o.frequency.setValueAtTime(880,t);o.frequency.setValueAtTime(1180,t+0.12);o.connect(g);g.connect(audioCtx.destination);g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.45,t+0.03);g.gain.exponentialRampToValueAtTime(0.0001,t+0.3);o.start(t);o.stop(t+0.32);t+=0.4;}}catch(e){}}
+let bnTimer=null;
+function showBanner(msg){const b=document.getElementById('bignote');if(!b)return;b.innerHTML='<span class="bell">🔔</span><span>'+msg+'</span>';b.classList.add('show');if(bnTimer)clearTimeout(bnTimer);bnTimer=setTimeout(()=>b.classList.remove('show'),4500);}
+function notify(msg){beep(2);try{if(navigator.vibrate)navigator.vibrate([200,100,200]);}catch(e){}showBanner(msg);}
+/* ---- date format (UTC -> IST readable) ---- */
+function fmtDate(s){if(!s)return '';try{const d=new Date(s.replace(' ','T')+(/[zZ]|\+/.test(s)?'':'Z'));if(isNaN(d))return '';return d.toLocaleDateString('en-IN',{day:'2-digit',month:'short'})+', '+d.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});}catch(e){return '';}}
+/* ---- auto-refresh polling (new order / status change) ---- */
+let pollTimer=null;let lastCookNewIds=new Set();let lastCustStatus={};
+async function startPolling(){
+  stopPolling();
+  try{
+    if(role==='cook'&&LOGGED_COOK){const o=await api('/api/orders?cookId='+LOGGED_COOK);lastCookNewIds=new Set(o.filter(x=>x.status==='new').map(x=>x.id));}
+    else if(role==='cust'&&CUST_PHONE){const o=await api('/api/orders?customerPhone='+encodeURIComponent(CUST_PHONE));lastCustStatus={};o.forEach(x=>lastCustStatus[x.id]=x.status);}
+  }catch(e){}
+  if(role==='cook'||role==='cust')pollTimer=setInterval(pollTick,7000);
+}
+function stopPolling(){if(pollTimer){clearInterval(pollTimer);pollTimer=null;}}
+async function pollTick(){
+  if(!CURRENT)return;
+  try{
+    if(role==='cook'){
+      const orders=await api('/api/orders?cookId='+LOGGED_COOK);
+      const newIds=new Set(orders.filter(o=>o.status==='new').map(o=>o.id));
+      let fresh=false;newIds.forEach(id=>{if(!lastCookNewIds.has(id))fresh=true;});
+      lastCookNewIds=newIds;
+      if(fresh){notify(lang==='ta'?'புதிய ஆர்டர் வந்தது!':'New order received!');renderCook();}
+    } else if(role==='cust'){
+      const orders=await api('/api/orders?customerPhone='+encodeURIComponent(CUST_PHONE));
+      let changed=false;
+      orders.forEach(o=>{
+        const prev=lastCustStatus[o.id];
+        if(prev&&prev!==o.status){changed=true;
+          if(o.status==='cooking')notify(lang==='ta'?'👩‍🍳 Cook ஆர்டர் ஏத்துக்கிட்டாங்க':'👩‍🍳 Cook accepted your order');
+          else if(o.status==='out')notify(lang==='ta'?'🛵 ஆர்டர் வந்துட்டு இருக்கு!':'🛵 Your order is on the way!');
+          else if(o.status==='delivered')notify(lang==='ta'?'🏠 ஆர்டர் வந்தாச்சு! 😋':'🏠 Order delivered! 😋');
+        }
+        lastCustStatus[o.id]=o.status;
+      });
+      if(changed)renderCust();
+    }
+  }catch(e){}
+}
 async function api(path, opts={}){
   const headers={};
   if(opts.body) headers['Content-Type']='application/json';
@@ -254,8 +304,8 @@ function verifyRealOtp(){
 }
 function doCook(id,name){LOGGED_COOK=id;CURRENT={role:'cook',name};saveSession({role:'cook',cookId:id,name});enter('cook','👩‍🍳 '+name);}
 function doAdmin(){const p=(document.getElementById('li-pass').value||'').trim();if(p!=='1234'){toast(lang==='ta'?'தவறான கடவுச்சொல்':'Wrong passcode');return;}CURRENT={role:'admin',name:'Owner'};enter('admin','🛠️ Owner');}
-function enter(r,label){role=r;document.getElementById('loginScreen').classList.add('hide');document.getElementById('appbar').classList.remove('hide');document.getElementById('liveban').classList.remove('hide');document.getElementById('phoneWrap').classList.remove('hide');document.getElementById('ab-role').textContent=label;document.getElementById('lgl').textContent=lang.toUpperCase();document.getElementById('ab-logout').textContent=t('logout');document.getElementById('lbl-live').textContent=t('liveb');render();}
-function logout(){clearSession();CURRENT=null;LOGGED_COOK=null;CUST_PHONE=null;closeSheet();document.getElementById('appbar').classList.add('hide');document.getElementById('liveban').classList.add('hide');document.getElementById('phoneWrap').classList.add('hide');document.getElementById('loginScreen').classList.remove('hide');backRole();}
+function enter(r,label){role=r;document.getElementById('loginScreen').classList.add('hide');document.getElementById('appbar').classList.remove('hide');document.getElementById('liveban').classList.remove('hide');document.getElementById('phoneWrap').classList.remove('hide');document.getElementById('ab-role').textContent=label;document.getElementById('lgl').textContent=lang.toUpperCase();document.getElementById('ab-logout').textContent=t('logout');document.getElementById('lbl-live').textContent=t('liveb');render();initAudio();startPolling();}
+function logout(){clearSession();stopPolling();CURRENT=null;LOGGED_COOK=null;CUST_PHONE=null;closeSheet();document.getElementById('appbar').classList.add('hide');document.getElementById('liveban').classList.add('hide');document.getElementById('phoneWrap').classList.add('hide');document.getElementById('loginScreen').classList.remove('hide');backRole();}
 
 function custStage(o){return o.status==='new'?1:o.status==='cooking'?2:o.status==='out'?3:o.status==='delivered'?4:0;}
 let role='cust';
@@ -284,7 +334,7 @@ async function renderCust(){
 }
 function custOrderCard(o){const st=custStage(o);const live=st<4;const emoji=cemoji(o.cook_id);
   return `<div class="card"><div class="row"><div class="av" style="background:${cbg(o.cook_id)}">${emoji}</div>
-    <div style="flex:1"><h3>Order #${o.id}</h3><div class="meta">₹${o.total} · ${o.plan||''}</div>
+    <div style="flex:1"><h3>Order #${o.id}</h3><div class="meta">₹${o.total} · ${o.plan||''}${o.created_at?' · 📅 '+fmtDate(o.created_at):''}</div>
     <div class="meta" style="color:${live?'var(--brand)':'var(--accent)'};font-weight:700;margin-top:3px">${live?('🛵 '+stepTxt[st][lang][0]):(o.stars?('★ '+o.stars+'/5'):'✓ '+stepTxt[4][lang][0])}</div></div>
     ${live?`<button class="btn" onclick="openTrack(${o.id})">${t('track')}</button>`:(o.stars?'':`<button class="btn g" onclick="openRate(${o.id})">${t('rate')}</button>`)}
     </div></div>`;}
@@ -292,6 +342,7 @@ function custPastCard(o){const emoji=cemoji(o.cook_id);
   return `<div class="card"><div class="row"><div class="av" style="background:${cbg(o.cook_id)}">${emoji}</div>
     <div style="flex:1"><h3>Order #${o.id} <span style="color:var(--accent);font-size:11px;font-weight:700">✓ ${stepTxt[4][lang][0]}</span></h3>
     <div class="meta" style="margin-top:4px">${o.items.map(i=>i.name+' ×'+i.qty).join(', ')}</div>
+    ${o.created_at?`<div class="meta" style="margin-top:3px">📅 ${fmtDate(o.created_at)}</div>`:''}
     <div class="meta" style="margin-top:3px">₹${o.total} · ${o.stars?('★ '+o.stars+'/5'):(lang==='ta'?'rate pannala':'not rated')}</div></div>
     ${o.stars?`<button class="btn" style="background:var(--accent)" onclick="openCook(${o.cook_id})">${t('reorder')}</button>`:`<button class="btn g" onclick="openRate(${o.id})">${t('rate')}</button>`}
     </div></div>`;}
@@ -390,7 +441,7 @@ function renderCookReviews(orders){
   const avg=(rated.reduce((a,o)=>a+o.stars,0)/rated.length).toFixed(1);
   return `<div class="card" style="text-align:center;background:linear-gradient(135deg,#fff7ed,#ffe0b2)"><div style="font-size:30px;font-weight:800;color:var(--brand-dark)">★ ${avg}</div><div class="meta">${rated.length} ${lang==='ta'?'விமர்சனம்':'reviews'}</div></div>
     ${rated.map(o=>{const bad=o.stars<=2;return `<div class="card" style="${bad?'border-left:4px solid var(--red)':''}">
-      <div style="display:flex;justify-content:space-between;align-items:center"><div class="meta">#${o.id} · ${o.customer_name||''}</div><span style="color:var(--gold);font-size:15px">${'★'.repeat(o.stars)}${'☆'.repeat(5-o.stars)}</span></div>
+      <div style="display:flex;justify-content:space-between;align-items:center"><div class="meta">#${o.id} · ${o.customer_name||''}${o.created_at?' · 📅 '+fmtDate(o.created_at):''}</div><span style="color:var(--gold);font-size:15px">${'★'.repeat(o.stars)}${'☆'.repeat(5-o.stars)}</span></div>
       ${o.remark?`<div style="font-size:13px;margin-top:6px">"${o.remark}"</div>`:`<div class="meta" style="margin-top:6px">${lang==='ta'?'கருத்து இல்லை':'No remark'}</div>`}
       <div class="meta" style="margin-top:5px">${o.items.map(i=>i.name).join(', ')}</div>
     </div>`;}).join('')}`;
@@ -399,7 +450,7 @@ function renderCookOrders(orders){
   const act=orders.filter(o=>o.status!=='delivered'&&o.status!=='rejected');
   if(!act.length)return `<div class="empty">${t('waiting')} 🕐</div>`;
   return act.map(o=>`<div class="card" style="border-left:4px solid ${o.status==='new'?'var(--brand)':o.status==='out'?'var(--blue)':'var(--gold)'}">
-      <div style="display:flex;justify-content:space-between"><div><b>#${o.id}</b><div class="meta">${o.customer_name||''} · ${o.plan||''}</div></div><span class="badge ${o.status==='new'?'b-new':o.status==='cooking'?'b-cook':'b-out'}">${o.status==='new'?'🔔 NEW':o.status==='cooking'?'🍳':'🛵'}</span></div>
+      <div style="display:flex;justify-content:space-between"><div><b>#${o.id}</b><div class="meta">${o.customer_name||''} · ${o.plan||''}${o.created_at?' · 📅 '+fmtDate(o.created_at):''}</div></div><span class="badge ${o.status==='new'?'b-new':o.status==='cooking'?'b-cook':'b-out'}">${o.status==='new'?'🔔 NEW':o.status==='cooking'?'🍳':'🛵'}</span></div>
       <div style="margin:8px 0;font-size:13px">${o.items.map(i=>`<div style="display:flex;justify-content:space-between;padding:2px 0"><span>${i.name} ×${i.qty}</span><span>₹${i.price*i.qty}</span></div>`).join('')}</div>
       <div class="foot"><span class="meta">${t('total')}</span><b>₹${o.total}</b></div>
       ${o.status==='new'?`<div style="display:flex;gap:8px;margin-top:10px"><button class="mini2" style="flex:1;padding:10px;background:#fee2e2;color:var(--red)" onclick="cookAct(${o.id},'rejected')">${t('reject')}</button><button class="btn" style="flex:1" onclick="cookAct(${o.id},'cooking')">${t('accept')}</button></div>`:''}
@@ -444,8 +495,8 @@ async function renderAdmin(){
       <button class="btn full" style="background:#fff;color:var(--ink);border:1.5px solid var(--line);margin-top:0;margin-bottom:12px" onclick="renderAdmin()">🔄 Refresh</button>
       <div class="kpis"><div class="kpi"><b>${orders.length}</b><small>${lang==='ta'?'ஆர்டர்':'Orders'}</small></div><div class="kpi"><b>₹${orders.reduce((a,o)=>a+Math.round(o.total*0.15),0)}</b><small>${lang==='ta'?'கமிஷன்':'Commission'}</small></div><div class="kpi"><b>${cooks.length}</b><small>${lang==='ta'?'சமையல்':'Cooks'}</small></div></div>
       <div class="sec-title">${t('live')}</div>
-      ${orders.length?`<div class="card" style="padding:6px"><table><tr><th>#</th><th>Cook</th><th>₹</th><th>${lang==='ta'?'நிலை':'Status'}</th><th></th></tr>
-        ${orders.map(o=>`<tr><td><b>${o.id}</b></td><td>${o.cook_id}</td><td>₹${o.total}</td>
+      ${orders.length?`<div class="card" style="padding:6px"><table><tr><th>#</th><th>Cook</th><th>₹</th><th>${lang==='ta'?'தேதி':'Date'}</th><th>${lang==='ta'?'நிலை':'Status'}</th><th></th></tr>
+        ${orders.map(o=>`<tr><td><b>${o.id}</b></td><td>${o.cook_id}</td><td>₹${o.total}</td><td class="meta" style="white-space:nowrap">${fmtDate(o.created_at)||'-'}</td>
         <td>${o.locked?`<span class="badge b-lock">🔒</span>`:`<span class="badge ${o.status==='new'?'b-new':o.status==='cooking'?'b-cook':o.status==='out'?'b-out':'b-done'}">${o.status}</span>`}</td>
         <td><button class="mini2 ${o.locked?'unlockb':'lockb'}" onclick="toggleLock(${o.id},${o.locked?0:1})">${o.locked?t('unlock'):t('lock')}</button></td></tr>`).join('')}</table></div>`:`<div class="empty">${t('noord')}</div>`}
       <div class="sec-title">${t('reviews')}</div>
