@@ -17,6 +17,30 @@ const h = (fn) => (req, res) => {
   catch (e) { console.error(e); res.status(500).json({ error: 'server_error', message: e.message }); }
 };
 
+// ---------- EMAIL (Resend) ----------
+// Sends an approval email. No-op (logged) if RESEND_API_KEY is not set.
+async function sendApprovalEmail(to, name, role, approved) {
+  const key = process.env.RESEND_API_KEY;
+  if (!key || !to) { console.log('[email] skipped (no key or no recipient):', to); return; }
+  const from = process.env.RESEND_FROM || 'Amma Samayal <onboarding@resend.dev>';
+  const roleName = role === 'cook' ? 'Cook Partner' : 'Delivery Partner';
+  const subject = approved
+    ? `Amma Samayal — Your ${roleName} account is approved ✅`
+    : `Amma Samayal — ${roleName} application update`;
+  const html = approved
+    ? `<div style="font-family:sans-serif"><h2>Vanakkam ${name || ''} 🙏</h2><p>Your <b>${roleName}</b> account on <b>Amma Samayal</b> has been <b style="color:#17794a">approved</b>. You can now log in with your phone number and OTP and start ${role === 'cook' ? 'receiving orders' : 'delivering orders'}.</p><p>Open the app: <a href="https://amma-samayal-backend.onrender.com">amma-samayal-backend.onrender.com</a></p><p>— Team Amma Samayal</p></div>`
+    : `<div style="font-family:sans-serif"><h2>Vanakkam ${name || ''}</h2><p>Thank you for applying as a <b>${roleName}</b> on Amma Samayal. Unfortunately your application was not approved at this time. Please contact support for details.</p><p>— Team Amma Samayal</p></div>`;
+  try {
+    const r = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from, to, subject, html })
+    });
+    const j = await r.json().catch(() => ({}));
+    console.log('[email]', r.status, j.id || j.message || '');
+  } catch (e) { console.error('[email] error', e.message); }
+}
+
 // ---------- COOKS ----------
 // List approved cooks (customer app home)
 app.get('/api/cooks', h((req, res) => {
@@ -129,13 +153,115 @@ app.patch('/api/orders/:id/review-state', h((req, res) => {
   res.json({ ok: true });
 }));
 
-// Admin approves a cook (only if FSSAI present)
+// Admin approves / rejects a cook  (body: { decision: 'approve' | 'reject' })
 app.patch('/api/cooks/:id/approve', h((req, res) => {
-  const c = db.prepare('SELECT fssai FROM cooks WHERE id=?').get(req.params.id);
+  const decision = (req.body && req.body.decision) || 'approve';
+  const c = db.prepare('SELECT * FROM cooks WHERE id=?').get(req.params.id);
   if (!c) return res.status(404).json({ error: 'not found' });
-  if (!c.fssai) return res.status(400).json({ error: 'FSSAI required before approval' });
-  db.prepare('UPDATE cooks SET approved=1 WHERE id=?').run(req.params.id);
+  if (decision === 'approve') {
+    db.prepare("UPDATE cooks SET approved=1, status='approved' WHERE id=?").run(req.params.id);
+    sendApprovalEmail(c.email, c.name, 'cook', true);
+  } else {
+    db.prepare("UPDATE cooks SET approved=0, status='rejected' WHERE id=?").run(req.params.id);
+    sendApprovalEmail(c.email, c.name, 'cook', false);
+  }
+  res.json({ ok: true, status: decision === 'approve' ? 'approved' : 'rejected' });
+}));
+
+// ---------- ACCOUNTS (signup / login lookup) ----------
+// Does this phone already have an account for this role? + status
+app.get('/api/account', h((req, res) => {
+  const { role, phone } = req.query;
+  if (!role || !phone) return res.status(400).json({ error: 'role and phone required' });
+  if (role === 'customer') {
+    const c = db.prepare('SELECT phone, name, email, addresses_json FROM customers WHERE phone=?').get(phone);
+    return res.json({ exists: !!c, profile: c ? { ...c, addresses: JSON.parse(c.addresses_json || '[]') } : null });
+  }
+  if (role === 'cook') {
+    const c = db.prepare('SELECT id, name, phone, email, status, approved FROM cooks WHERE phone=?').get(phone);
+    return res.json({ exists: !!c, status: c ? c.status : null, cook: c || null });
+  }
+  if (role === 'rider') {
+    const r = db.prepare('SELECT id, name, phone, email, status FROM riders WHERE phone=?').get(phone);
+    return res.json({ exists: !!r, status: r ? r.status : null, rider: r || null });
+  }
+  res.status(400).json({ error: 'bad role' });
+}));
+
+// Customer signup / upsert
+app.post('/api/customers', h((req, res) => {
+  const { phone, name = '', email = '', addresses = [] } = req.body;
+  if (!phone) return res.status(400).json({ error: 'phone required' });
+  const addrJson = JSON.stringify(Array.isArray(addresses) ? addresses : []);
+  const existing = db.prepare('SELECT phone FROM customers WHERE phone=?').get(phone);
+  if (existing) {
+    db.prepare('UPDATE customers SET name=?, email=?, addresses_json=? WHERE phone=?').run(name, email, addrJson, phone);
+  } else {
+    db.prepare('INSERT INTO customers (phone, name, email, addresses_json) VALUES (?,?,?,?)').run(phone, name, email, addrJson);
+  }
+  res.status(201).json({ ok: true });
+}));
+
+app.get('/api/customers/:phone', h((req, res) => {
+  const c = db.prepare('SELECT phone, name, email, addresses_json FROM customers WHERE phone=?').get(req.params.phone);
+  if (!c) return res.status(404).json({ error: 'not found' });
+  res.json({ ...c, addresses: JSON.parse(c.addresses_json || '[]') });
+}));
+
+// Replace a customer's saved addresses (array of {label,text,lat,lng})
+app.put('/api/customers/:phone/addresses', h((req, res) => {
+  const { addresses = [] } = req.body;
+  const c = db.prepare('SELECT phone FROM customers WHERE phone=?').get(req.params.phone);
+  if (!c) return res.status(404).json({ error: 'not found' });
+  db.prepare('UPDATE customers SET addresses_json=? WHERE phone=?').run(JSON.stringify(addresses), req.params.phone);
   res.json({ ok: true });
+}));
+
+// Cook signup -> pending approval
+app.post('/api/cook-signup', h((req, res) => {
+  const { name, phone, email = '', experience = '', fssai = '', fssai_doc = '', id_doc = '',
+          area = 'Thiruvottiyur', veg = 1, address = '', lat = null, lng = null } = req.body;
+  if (!name || !phone) return res.status(400).json({ error: 'name and phone required' });
+  if (db.prepare('SELECT id FROM cooks WHERE phone=?').get(phone)) return res.status(409).json({ error: 'phone already registered' });
+  const info = db.prepare(`INSERT INTO cooks (name, area, phone, fssai, veg, rating, approved, address, lat, lng, email, experience, fssai_doc, id_doc, status)
+    VALUES (?,?,?,?,?,0,0,?,?,?,?,?,?,?,'pending')`)
+    .run(name, area, phone, fssai, veg ? 1 : 0, address, lat, lng, email, experience, fssai_doc, id_doc);
+  res.status(201).json({ id: info.lastInsertRowid, status: 'pending' });
+}));
+
+// Rider signup -> pending approval
+app.post('/api/riders', h((req, res) => {
+  const { name, phone, email = '', area = 'Thiruvottiyur', vehicle = '', license_number = '', license_doc = '',
+          pan_number = '', pan_doc = '', bank_account = '', bank_ifsc = '' } = req.body;
+  if (!name || !phone) return res.status(400).json({ error: 'name and phone required' });
+  if (db.prepare('SELECT id FROM riders WHERE phone=?').get(phone)) return res.status(409).json({ error: 'phone already registered' });
+  const info = db.prepare(`INSERT INTO riders (name, phone, email, area, vehicle, license_number, license_doc, pan_number, pan_doc, bank_account, bank_ifsc, status)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,'pending')`)
+    .run(name, phone, email, area, vehicle, license_number, license_doc, pan_number, pan_doc, bank_account, bank_ifsc);
+  res.status(201).json({ id: info.lastInsertRowid, status: 'pending' });
+}));
+
+// Admin: list of pending cooks + riders (with full details for verification)
+app.get('/api/admin/pending', h((req, res) => {
+  const cooks = db.prepare("SELECT * FROM cooks WHERE status='pending' ORDER BY id DESC").all();
+  const riders = db.prepare("SELECT * FROM riders WHERE status='pending' ORDER BY id DESC").all();
+  res.json({ cooks, riders });
+}));
+
+// Admin: all riders (for admin view)
+app.get('/api/riders', h((req, res) => {
+  res.json(db.prepare('SELECT * FROM riders ORDER BY id DESC').all());
+}));
+
+// Admin approves / rejects a rider  (body: { decision })
+app.patch('/api/riders/:id/approve', h((req, res) => {
+  const decision = (req.body && req.body.decision) || 'approve';
+  const r = db.prepare('SELECT * FROM riders WHERE id=?').get(req.params.id);
+  if (!r) return res.status(404).json({ error: 'not found' });
+  const status = decision === 'approve' ? 'approved' : 'rejected';
+  db.prepare('UPDATE riders SET status=? WHERE id=?').run(status, req.params.id);
+  sendApprovalEmail(r.email, r.name, 'rider', decision === 'approve');
+  res.json({ ok: true, status });
 }));
 
 app.get('/', (req, res) => res.json({ app: 'Amma Samayal API', status: 'running' }));

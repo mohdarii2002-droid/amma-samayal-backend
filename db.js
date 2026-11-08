@@ -48,6 +48,30 @@ CREATE TABLE IF NOT EXISTS orders (
   review_state TEXT,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
+CREATE TABLE IF NOT EXISTS customers (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  phone TEXT UNIQUE NOT NULL,
+  name TEXT,
+  email TEXT,
+  addresses_json TEXT DEFAULT '[]',
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS riders (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  phone TEXT UNIQUE NOT NULL,
+  name TEXT,
+  email TEXT,
+  area TEXT,
+  vehicle TEXT,
+  license_number TEXT,
+  license_doc TEXT,
+  pan_number TEXT,
+  pan_doc TEXT,
+  bank_account TEXT,
+  bank_ifsc TEXT,
+  status TEXT DEFAULT 'pending',
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
 CREATE INDEX IF NOT EXISTS idx_menu_cook ON menu_items(cook_id);
 CREATE INDEX IF NOT EXISTS idx_orders_cook ON orders(cook_id);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
@@ -62,6 +86,12 @@ addCol('ALTER TABLE cooks ADD COLUMN lng REAL');
 addCol('ALTER TABLE orders ADD COLUMN customer_address TEXT');
 addCol('ALTER TABLE orders ADD COLUMN customer_lat REAL');
 addCol('ALTER TABLE orders ADD COLUMN customer_lng REAL');
+// cook profile fields for signup + approval
+addCol('ALTER TABLE cooks ADD COLUMN email TEXT');
+addCol('ALTER TABLE cooks ADD COLUMN experience TEXT');
+addCol('ALTER TABLE cooks ADD COLUMN fssai_doc TEXT');
+addCol('ALTER TABLE cooks ADD COLUMN id_doc TEXT');
+addCol("ALTER TABLE cooks ADD COLUMN status TEXT DEFAULT 'pending'");
 
 const count = db.prepare('SELECT COUNT(*) AS c FROM cooks').get().c;
 if (count === 0) {
@@ -77,5 +107,9 @@ if (count === 0) {
   insItem.run(c2, 'Chicken biryani', 'Seeraga samba, raita free', 120, 0);
   insItem.run(c2, 'Egg curry + chapathi', '2 egg, 3 chapathi', 90, 0);
 }
+
+// keep cook status in sync with approved flag (approved demo cooks -> 'approved')
+try { db.exec("UPDATE cooks SET status='approved' WHERE approved=1"); } catch (e) {}
+try { db.exec("UPDATE cooks SET status='pending' WHERE approved=0 AND (status IS NULL OR status='')"); } catch (e) {}
 
 module.exports = db;
