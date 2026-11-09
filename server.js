@@ -9,6 +9,16 @@ const db = require('./db');
 const app = express();
 app.use(cors());            // allow the apps (different origin) to call this API
 app.use(express.json());    // parse JSON bodies
+// Digital Asset Links — lets the installed APK (TWA) verify this site and HIDE the address bar
+app.get('/.well-known/assetlinks.json', (req, res) => res.json([{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.onrender.amma_samayal_backend.twa",
+    "sha256_cert_fingerprints": ["5D:0A:72:03:B8:59:25:48:71:0F:7D:44:3D:AB:1C:C7:F4:6F:52:60:47:C8:70:95:4E:05:5B:A9:E5:6E:90:26"]
+  }
+}]));
+
 app.use(express.static('public')); // serve the app (public/index.html) from the SAME origin as the API
 
 // tiny helper: wrap each route so one error never crashes the server
