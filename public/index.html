@@ -116,28 +116,31 @@
   .bnav .ic{font-size:20px;display:block;margin-bottom:2px}
   .bnav .pdot{display:inline-block;min-width:16px;height:16px;line-height:16px;background:var(--red);color:#fff;border-radius:9px;font-size:10px;font-weight:800;padding:0 4px;margin-left:3px}
   .hasnav .wrap{padding-bottom:78px}
-  /* OWNER web dashboard — wide layout (owner uses the browser, not the mobile app) */
-  body.web{background:#e7efe9}
-  body.web .appbar,body.web .live-banner{max-width:1180px}
-  body.web .phone{max-width:1180px;min-height:84vh;background:var(--bg)}
-  body.web .wrap{padding:20px 26px 48px;max-width:1180px;margin:0 auto}
-  body.web .top{border-radius:12px;margin-bottom:4px}
-  body.web .kpis{max-width:620px}
-  .agrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:12px;align-items:start}
-  body.web .sec-title{font-size:17px;margin-top:18px}
+  /* OWNER web dashboard — FULL-WIDTH professional layout (owner uses the browser) */
+  body.web{background:#f1f5f9}
+  body.web .appbar{background:#0f172a}
+  body.web .appbar,body.web .live-banner,body.web .phone{max-width:100%}
+  body.web .phone{min-height:92vh;background:#f1f5f9;overflow:visible}
+  body.web .top{border-radius:0;margin-bottom:0}
+  body.web .top.admin{background:linear-gradient(120deg,#0f2e22 0%,#14302b 60%,#0f172a 100%)}
+  .agrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;align-items:start}
   /* admin panel: sidebar + pages + data tables */
-  .adminwrap{display:flex;gap:16px;align-items:flex-start;padding:16px 18px 40px}
-  .sidebar{width:208px;flex-shrink:0;background:#111827;border-radius:14px;padding:10px;position:sticky;top:70px}
-  .sidebar .navi{display:flex;align-items:center;gap:9px;padding:11px 12px;border-radius:9px;color:#cbd5e1;font-size:13.5px;font-weight:700;cursor:pointer;margin-bottom:3px}
-  .sidebar .navi.on{background:var(--brand);color:#fff}
-  .sidebar .navi .b{margin-left:auto;background:var(--red);color:#fff;border-radius:10px;font-size:10px;font-weight:800;padding:1px 7px}
+  .adminwrap{display:flex;gap:20px;align-items:flex-start;padding:22px 30px 56px;max-width:1760px;margin:0 auto}
+  .sidebar{width:220px;flex-shrink:0;background:#0f172a;border-radius:16px;padding:12px;position:sticky;top:72px;box-shadow:0 8px 24px rgba(15,23,42,.14)}
+  .sidebar .navi{display:flex;align-items:center;gap:10px;padding:12px 13px;border-radius:10px;color:#94a3b8;font-size:13.5px;font-weight:700;cursor:pointer;margin-bottom:3px;transition:.15s}
+  .sidebar .navi.on{background:linear-gradient(120deg,#17794a,#0e5e39);color:#fff;box-shadow:0 4px 12px rgba(23,121,74,.4)}
+  .sidebar .navi:hover:not(.on){background:#1e293b;color:#e2e8f0}
+  .sidebar .navi .b{margin-left:auto;background:#ef4444;color:#fff;border-radius:10px;font-size:10px;font-weight:800;padding:1px 7px}
   .adminmain{flex:1;min-width:0}
-  .ptitle{font-size:21px;font-weight:800;margin:2px 0 16px}
-  .dtable{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;font-size:13px;box-shadow:0 2px 8px rgba(0,0,0,.05)}
-  .dtable th{background:#f9fafb;text-align:left;padding:11px 12px;font-size:11px;color:#6b7280;border-bottom:1px solid var(--line);white-space:nowrap}
-  .dtable td{padding:11px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  .ptitle{font-size:22px;font-weight:800;margin:2px 0 18px;color:#0f172a}
+  .dtable{width:100%;border-collapse:separate;border-spacing:0;background:#fff;border-radius:14px;overflow:hidden;font-size:13px;box-shadow:0 1px 3px rgba(15,23,42,.08),0 8px 24px rgba(15,23,42,.05)}
+  .dtable th{background:#f8fafc;text-align:left;padding:13px 14px;font-size:11px;letter-spacing:.3px;text-transform:uppercase;color:#64748b;border-bottom:1px solid #e2e8f0;white-space:nowrap}
+  .dtable td{padding:13px 14px;border-bottom:1px solid #eef2f6;vertical-align:top;color:#1e293b}
   .dtable tr:last-child td{border-bottom:none}
+  .dtable tbody tr:hover td{background:#f8fafc}
   .pill{font-size:10px;font-weight:800;padding:3px 9px;border-radius:20px;white-space:nowrap}
+  body.web .kpi{border-radius:14px;box-shadow:0 1px 3px rgba(15,23,42,.08),0 8px 20px rgba(15,23,42,.05);border:1px solid #eef2f6}
+  body.web .card{border-radius:14px;box-shadow:0 1px 3px rgba(15,23,42,.08),0 8px 20px rgba(15,23,42,.05)}
   @media(max-width:820px){
     .adminwrap{flex-direction:column;padding:12px}
     .sidebar{width:100%;position:static;display:flex;gap:6px;overflow-x:auto;padding:8px}
@@ -982,8 +985,8 @@ function adminCooks(){
   const {cooks,menus}=ADMIN;
   return `<div class="ptitle">👩‍🍳 ${AL('சமையல்காரர்கள்','Cooks')} (${cooks.length})</div>
     <div style="overflow-x:auto"><table class="dtable">
-      <tr><th>#</th><th>${AL('பெயர்','Name')}</th><th>${AL('தொலைபேசி','Phone')}</th><th>★</th><th>${AL('வகை','Type')}</th><th>Status</th></tr>
-      ${cooks.map(c=>`<tr><td>${c.id}</td><td><b>${c.name}</b><div class="meta">${c.email||''}</div></td><td>${c.phone||'-'}</td><td>★ ${c.rating||0}</td><td>${c.veg?'🟢 Veg':'🔴 Non-veg'}</td><td>${adminStatusPill(c.status||(c.approved?'approved':'pending'))}</td></tr>`).join('')}
+      <tr><th>#</th><th>${AL('பெயர்','Name')}</th><th>${AL('தொலைபேசி','Phone')}</th><th>📍 ${AL('இடம்','Location')}</th><th>★</th><th>${AL('வகை','Type')}</th><th>Status</th></tr>
+      ${cooks.map(c=>`<tr><td>${c.id}</td><td><b>${c.name}</b><div class="meta">${c.email||''}</div></td><td>${c.phone||'-'}</td><td style="max-width:240px">${c.address||c.area||'-'}${(c.lat&&c.lng)?` <a href="https://www.google.com/maps/search/?api=1&query=${c.lat},${c.lng}" target="_blank" style="color:var(--blue);font-weight:700;white-space:nowrap">🗺️ ${AL('வரைபடம்','Map')}</a>`:''}</td><td>★ ${c.rating||0}</td><td>${c.veg?'🟢 Veg':'🔴 Non-veg'}</td><td>${adminStatusPill(c.status||(c.approved?'approved':'pending'))}</td></tr>`).join('')}
     </table></div>
     <div class="ptitle" style="font-size:16px;margin-top:22px">🍲 ${AL('மெனு தரக் கட்டுப்பாடு','Menu quality control')}</div>
     <div class="agrid">${menus.map(c=>`<div class="card">
