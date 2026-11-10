@@ -329,6 +329,12 @@ app.patch('/api/admin/alerts/:id/clear', h((req, res) => {
   res.json({ ok: true });
 }));
 
+// Owner: clear all test data and re-seed the demo cooks/riders
+app.post('/api/admin/reset', h((req, res) => {
+  db.resetTestData();
+  res.json({ ok: true });
+}));
+
 app.get('/', (req, res) => res.json({ app: 'Amma Samayal API', status: 'running' }));
 
 const PORT = process.env.PORT || 4000;

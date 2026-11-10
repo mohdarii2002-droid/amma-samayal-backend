@@ -886,7 +886,10 @@ async function renderAdmin(){
   document.getElementById('view').innerHTML=`
     <div class="top admin"><h1>${t('admintitle')}</h1><div class="sub">Owner · ${orders.length} ${lang==='ta'?'ஆர்டர்':'orders'} · ${pendCount} ${lang==='ta'?'approval':'to approve'}</div></div>
     <div class="wrap">
-      <button class="btn full" style="background:#fff;color:var(--ink);border:1.5px solid var(--line);margin-top:0;margin-bottom:12px" onclick="renderAdmin()">🔄 Refresh</button>
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <button class="btn" style="flex:1;background:#fff;color:var(--ink);border:1.5px solid var(--line)" onclick="renderAdmin()">🔄 Refresh</button>
+        <button class="btn" style="flex:1;background:#fff;color:var(--red);border:1.5px solid var(--red)" onclick="resetTestData()">🧹 ${lang==='ta'?'Test data clear':'Clear test data'}</button>
+      </div>
       <div class="kpis"><div class="kpi"><b>${orders.length}</b><small>${lang==='ta'?'ஆர்டர்':'Orders'}</small></div><div class="kpi"><b style="color:${pendCount?'#b45309':'inherit'}">${pendCount}</b><small>${lang==='ta'?'Approval':'Pending'}</small></div><div class="kpi"><b>${cooks.length}</b><small>${lang==='ta'?'சமையல்':'Cooks'}</small></div></div>
       ${alerts.length?`<div class="sec-title">🚨 ${lang==='ta'?'Number பிரச்சனை (ஒரே number, பல role)':'Number alerts (one number, many roles)'}</div>${alerts.map(a=>`<div class="card" style="border-left:4px solid var(--red)">
         <div style="display:flex;justify-content:space-between;align-items:center"><b>📞 ${a.phone}</b><span class="badge b-lock">⚠️ ${lang==='ta'?'மோதல்':'Conflict'}</span></div>
@@ -926,6 +929,11 @@ async function flagDish(id,kind,val){
   catch(e){toast(t('err'));}
 }
 async function clearAlert(id){try{await api('/api/admin/alerts/'+id+'/clear',{method:'PATCH'});renderAdmin();}catch(e){toast(t('err'));}}
+async function resetTestData(){
+  if(!confirm(lang==='ta'?'எல்லா test data-வும் (orders, customers, cook/delivery signups) அழிக்கப்படும். Demo cooks மட்டும் மீதம். உறுதியா?':'All test data (orders, customers, cook/delivery signups) will be wiped. Only demo cooks remain. Sure?'))return;
+  try{await api('/api/admin/reset',{method:'POST'});toast(lang==='ta'?'🧹 Test data clear ஆச்சு':'🧹 Test data cleared');renderAdmin();}
+  catch(e){toast(t('err'));}
+}
 async function toggleLock(id,v){try{await api('/api/orders/'+id+'/lock',{method:'PATCH',body:JSON.stringify({locked:v})});renderAdmin();}catch(e){toast(t('err'));}}
 async function decideCook(id,decision){try{await api('/api/cooks/'+id+'/approve',{method:'PATCH',body:JSON.stringify({decision})});toast(decision==='approve'?(lang==='ta'?'✅ Approve ஆச்சு, email அனுப்பப்பட்டது':'✅ Approved, email sent'):(lang==='ta'?'Reject ஆச்சு':'Rejected'));renderAdmin();}catch(e){toast(t('err'));}}
 async function decideRider(id,decision){try{await api('/api/riders/'+id+'/approve',{method:'PATCH',body:JSON.stringify({decision})});toast(decision==='approve'?(lang==='ta'?'✅ Approve ஆச்சு, email அனுப்பப்பட்டது':'✅ Approved, email sent'):(lang==='ta'?'Reject ஆச்சு':'Rejected'));renderAdmin();}catch(e){toast(t('err'));}}
