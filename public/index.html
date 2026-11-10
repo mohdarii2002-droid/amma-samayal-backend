@@ -125,7 +125,7 @@
   <div class="login" id="loginScreen">
     <div class="food-bg">🍲 🍛 🥘 🍚 🫓 🥗 🍜 🍳 🥙 🍲 🍛 🥘 🍚 🫓 🥗 🍜 🍳 🥙 🍲 🍛 🥘 🍚 🫓 🥗 🍜 🍳 🥙 🍲 🍛 🥘 🍚 🫓 🥗 🍜 🍳 🥙 🍲 🍛 🥘 🍚 🫓 🥗 🍜 🍳 🥙 🍲 🍛 🥘 🍚 🫓 🥗 🍜 🍳 🥙 🍲 🍛 🥘 🍚 🫓 🥗 🍜 🍳 🥙 🍲 🍛 🥘 🍚 🫓 🥗 🍜 🍳 🥙 🍲 🍛 🥘 🍚 🫓 🥗 🍜 🍳 🥙 🍲 🍛 🥘 🍚 🫓 🥗 🍜 🍳 🥙 🍲 🍛 🥘 🍚 🫓 🥗 🍜 🍳 🥙</div>
     <div class="login-inner">
-      <div class="logo">🍲</div>
+      <div class="logo" onclick="ownerTap()">🍲</div>
       <h1>Amma Samayal</h1>
       <div class="brand-tag">Veettu Samayal · Veettu Ruchi</div>
       <p id="login-sub">Naan yaaru?</p>
@@ -296,6 +296,16 @@ function chooseRole(r){
   }
 }
 function backRole(){document.getElementById('loginForm').innerHTML='';document.getElementById('roleChoice').classList.remove('hide');}
+/* secret owner entry: tap the pot logo 5 times (works inside the APK where there is no address bar) */
+let _oTap=0,_oTimer=null;
+function ownerTap(){
+  _oTap++;clearTimeout(_oTimer);_oTimer=setTimeout(()=>{_oTap=0;},2000);
+  if(_oTap>=5){_oTap=0;
+    document.getElementById('roleChoice').classList.add('hide');
+    document.getElementById('login-sub').textContent=lang==='ta'?'உரிமையாளர் உள்நுழைவு 🛠️':'Owner login 🛠️';
+    chooseRole('admin');
+  }
+}
 /* New user -> go straight to the signup form (owner approves cook/rider anyway) */
 async function goRegister(){
   const el=document.getElementById('li-phone');
