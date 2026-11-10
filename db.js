@@ -26,7 +26,18 @@ CREATE TABLE IF NOT EXISTS menu_items (
   price INTEGER NOT NULL,
   veg INTEGER DEFAULT 1,
   available INTEGER DEFAULT 1,
+  locked INTEGER DEFAULT 0,
+  warned INTEGER DEFAULT 0,
   FOREIGN KEY (cook_id) REFERENCES cooks(id)
+);
+CREATE TABLE IF NOT EXISTS owner_alerts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  phone TEXT,
+  attempted_role TEXT,
+  existing_roles TEXT,
+  name TEXT,
+  cleared INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 CREATE TABLE IF NOT EXISTS orders (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -92,6 +103,9 @@ addCol('ALTER TABLE cooks ADD COLUMN experience TEXT');
 addCol('ALTER TABLE cooks ADD COLUMN fssai_doc TEXT');
 addCol('ALTER TABLE cooks ADD COLUMN id_doc TEXT');
 addCol("ALTER TABLE cooks ADD COLUMN status TEXT DEFAULT 'pending'");
+// menu item quality flags (owner can warn / lock a dish)
+addCol('ALTER TABLE menu_items ADD COLUMN locked INTEGER DEFAULT 0');
+addCol('ALTER TABLE menu_items ADD COLUMN warned INTEGER DEFAULT 0');
 
 const count = db.prepare('SELECT COUNT(*) AS c FROM cooks').get().c;
 if (count === 0) {

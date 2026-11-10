@@ -107,6 +107,17 @@
   .bignote .bell{animation:ring .8s ease-in-out 2}
   @keyframes ring{0%,100%{transform:rotate(0)}20%{transform:rotate(16deg)}40%{transform:rotate(-14deg)}60%{transform:rotate(10deg)}80%{transform:rotate(-6deg)}}
   .hide{display:none!important}
+  /* hide the floating reCAPTCHA badge (OTP still protected; branding shown in login text) */
+  .grecaptcha-badge{visibility:hidden!important;opacity:0!important;pointer-events:none!important}
+  /* bottom navigation bar */
+  .bnav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:460px;background:#fff;border-top:1px solid var(--line);display:flex;z-index:48;box-shadow:0 -2px 10px rgba(0,0,0,.06)}
+  .bnav div{flex:1;text-align:center;padding:7px 2px 9px;font-size:10.5px;font-weight:700;color:var(--muted);cursor:pointer}
+  .bnav div.on{color:var(--brand)}
+  .bnav .ic{font-size:20px;display:block;margin-bottom:2px}
+  .bnav .pdot{display:inline-block;min-width:16px;height:16px;line-height:16px;background:var(--red);color:#fff;border-radius:9px;font-size:10px;font-weight:800;padding:0 4px;margin-left:3px}
+  .hasnav .wrap{padding-bottom:78px}
+  .addon{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px dashed var(--line)}
+  .notebox{width:100%;border:1.5px dashed var(--brand);border-radius:9px;padding:8px;font-size:12px;font-family:inherit;margin-top:6px;background:#f7fdf9}
 </style>
 </head>
 <body>
@@ -275,7 +286,8 @@ function chooseRole(r){
       <div class="hint" style="color:#fff;opacity:.95;font-weight:800;font-size:14px">${title}</div>
       <input id="li-phone" placeholder="${lang==='ta'?'மொபைல் எண் (10 இலக்கம்)':'Mobile (10 digit)'}" inputmode="numeric">
       <button class="rolebtn solid" id="otpbtn" onclick="sendOtp()">${lang==='ta'?'OTP அனுப்பு →':'Send OTP →'}</button>
-      <div class="hint" style="color:#fff;opacity:.75">${lang==='ta'?'புதியவரா? OTP-க்கு அப்புறம் account உருவாக்கலாம்':'New here? Create account after OTP'}</div>`;
+      <div class="hint" style="color:#fff;opacity:.9;margin-top:4px">${lang==='ta'?'ஏற்கனவே account இருந்தா ↑ OTP போடுங்க':'Have an account? Use OTP above'}</div>
+      <button class="rolebtn" style="background:rgba(255,255,255,.14);color:#fff;justify-content:center;border:1px solid rgba(255,255,255,.4);font-size:14px;margin-top:4px" onclick="goRegister()">🆕 ${lang==='ta'?'புதியவரா? இங்கே register பண்ணுங்க':'New here? Register now'}</button>`;
   } else {
     f.innerHTML=`<button class="lk" onclick="backRole()">←</button>
       <input id="li-pass" type="password" placeholder="${lang==='ta'?'அட்மின் கடவுச்சொல்':'Admin passcode'}">
@@ -284,6 +296,18 @@ function chooseRole(r){
   }
 }
 function backRole(){document.getElementById('loginForm').innerHTML='';document.getElementById('roleChoice').classList.remove('hide');}
+/* New user -> go straight to the signup form (owner approves cook/rider anyway) */
+async function goRegister(){
+  const el=document.getElementById('li-phone');
+  const p=((el&&el.value)||'').replace(/\D/g,'');
+  if(p.length!==10){toast(lang==='ta'?'சரியான 10 இலக்க மொபைல் எண் கொடுங்க':'Enter valid 10-digit mobile');return;}
+  PENDING.phone=p;SIGNUP_DOCS={};
+  // if this number already has THIS role, send them to OTP login instead of a duplicate signup
+  try{const acc=await api('/api/account?role='+PENDING.role+'&phone='+encodeURIComponent(p));
+    if(acc.exists){toast(lang==='ta'?'இந்த number ஏற்கனவே உள்ளது — OTP போட்டு login பண்ணுங்க':'Number already exists — login with OTP');return;}
+  }catch(e){}
+  showSignup();
+}
 function resetRecaptcha(){
   if(recaptchaVerifier){try{recaptchaVerifier.clear();}catch(x){}recaptchaVerifier=null;}
   const old=document.getElementById('recaptcha-container');
@@ -353,7 +377,9 @@ function pendingScreen(role,status){
     <div style="background:rgba(255,255,255,.14);border-radius:16px;padding:20px;text-align:center;color:#fff">
       <div style="font-size:42px">${rej?'❌':'⏳'}</div>
       <h3 style="margin:10px 0 6px">${rej?(lang==='ta'?'Approve ஆகல':'Not approved'):(lang==='ta'?'Approval காத்திருக்கு':'Awaiting approval')}</h3>
-      <div style="font-size:13px;opacity:.9;line-height:1.5">${rej?(lang==='ta'?'Support-ஐ தொடர்பு கொள்ளுங்க.':'Please contact support.'):(lang==='ta'?'Admin approve பண்ணப்புறம் login ஆகலாம். Approve ஆனதும் உங்க email-ku அறிவிப்பு வரும். 📧':'You can log in once the admin approves you. You will get an email when approved. 📧')}</div>
+      <div style="font-size:13px;opacity:.9;line-height:1.5">${rej?(lang==='ta'?'Support-ஐ தொடர்பு கொள்ளுங்க.':'Please contact support.'):(lang==='ta'?'Admin உங்க details-ஐ <b>12–24 மணி நேரத்துக்குள்</b> check பண்ணி approve பண்ணுவாங்க. Approve ஆனதும் உங்க email-ku அறிவிப்பு வரும் 📧. அப்புறம் இதே number + OTP-ல login பண்ணலாம்.':'The admin will verify your details and approve within <b>12–24 hours</b>. You will get an email when approved 📧. Then log in with this number + OTP.')}</div>
+      <div class="hint" style="color:#fff;opacity:.85;margin-top:10px">${lang==='ta'?'அப்புறம் இந்த app-ஐ திறந்தா, இதே status தான் காட்டும்.':'Re-opening the app shows this same status.'}</div>
+      <button class="rolebtn" style="background:rgba(255,255,255,.14);color:#fff;justify-content:center;border:1px solid rgba(255,255,255,.4);font-size:13px;margin-top:12px" onclick="clearSession();backRole()">${lang==='ta'?'← வேற role / வெளியேறு':'← Different role / Exit'}</button>
     </div>`;
 }
 /* ---- document photo upload (Cloudinary) ---- */
@@ -433,27 +459,36 @@ async function submitCustomer(){
     CUST_PHONE='cust-'+PENDING.phone;CURRENT={role:'cust',name};CUST_ADDRS=addresses;
     saveSession({role:'cust',phone:PENDING.phone,name});
     enter('cust','👤 '+name);
-  }catch(e){toast(t('err'));}
+  }catch(e){if(/role_conflict/.test(e.message||'')){roleConflictMsg();return;}toast(t('err'));}
+}
+/* one number already used by another role -> owner alerted */
+function roleConflictMsg(){
+  document.getElementById('loginForm').innerHTML=`<div style="background:rgba(255,255,255,.14);border-radius:16px;padding:20px;text-align:center;color:#fff">
+    <div style="font-size:42px">⚠️</div>
+    <h3 style="margin:10px 0 6px">${lang==='ta'?'இந்த number வேற role-ல உள்ளது':'Number already used'}</h3>
+    <div style="font-size:13px;opacity:.92;line-height:1.5">${lang==='ta'?'ஒரே மொபைல் number-ஐ ஒரு role-க்கு மட்டும்தான் பயன்படுத்த முடியும். Owner-க்கு அறிவிப்பு போயிடுச்சு — அவங்க உங்களை நேரடியா call பண்ணி கேட்பாங்க. 📞':'One mobile number can be used for only one role. The owner has been alerted and will call you directly. 📞'}</div>
+    <button class="rolebtn solid" style="margin-top:14px" onclick="backRole()">${lang==='ta'?'சரி':'OK'}</button>
+  </div>`;
 }
 async function submitCook(){
   const name=(document.getElementById('su-name').value||'').trim();const email=(document.getElementById('su-email').value||'').trim();
   if(!name||!email){toast(lang==='ta'?'பெயர் & email கொடுங்க':'Name & email needed');return;}
   const body={name,phone:PENDING.phone,email,experience:(document.getElementById('su-exp').value||'').trim(),fssai:(document.getElementById('su-fssai').value||'').trim(),fssai_doc:SIGNUP_DOCS.fssai_doc||'',id_doc:SIGNUP_DOCS.id_doc||'',address:(document.getElementById('su-addr').value||'').trim(),lat:custAddr.lat,lng:custAddr.lng,veg:SU_VEG?1:0};
-  try{await api('/api/cook-signup',{method:'POST',body:JSON.stringify(body)});signupDone('cook');}
-  catch(e){toast(/registered/.test(e.message||'')?(lang==='ta'?'இந்த number ஏற்கனவே உள்ளது':'Phone already registered'):t('err'));}
+  try{await api('/api/cook-signup',{method:'POST',body:JSON.stringify(body)});saveSession({role:'cook_pending',phone:PENDING.phone,name});signupDone('cook');}
+  catch(e){if(/role_conflict/.test(e.message||'')){roleConflictMsg();return;}toast(/registered/.test(e.message||'')?(lang==='ta'?'இந்த number ஏற்கனவே உள்ளது':'Phone already registered'):t('err'));}
 }
 async function submitRider(){
   const name=(document.getElementById('su-name').value||'').trim();const email=(document.getElementById('su-email').value||'').trim();
   if(!name||!email){toast(lang==='ta'?'பெயர் & email கொடுங்க':'Name & email needed');return;}
   const body={name,phone:PENDING.phone,email,vehicle:(document.getElementById('su-vehicle').value||'').trim(),license_number:(document.getElementById('su-lic').value||'').trim(),license_doc:SIGNUP_DOCS.license_doc||'',pan_number:(document.getElementById('su-pan').value||'').trim(),pan_doc:SIGNUP_DOCS.pan_doc||'',bank_account:(document.getElementById('su-bank').value||'').trim(),bank_ifsc:(document.getElementById('su-ifsc').value||'').trim()};
-  try{await api('/api/riders',{method:'POST',body:JSON.stringify(body)});signupDone('rider');}
-  catch(e){toast(/registered/.test(e.message||'')?(lang==='ta'?'இந்த number ஏற்கனவே உள்ளது':'Phone already registered'):t('err'));}
+  try{await api('/api/riders',{method:'POST',body:JSON.stringify(body)});saveSession({role:'rider_pending',phone:PENDING.phone,name});signupDone('rider');}
+  catch(e){if(/role_conflict/.test(e.message||'')){roleConflictMsg();return;}toast(/registered/.test(e.message||'')?(lang==='ta'?'இந்த number ஏற்கனவே உள்ளது':'Phone already registered'):t('err'));}
 }
 function signupDone(role){
   document.getElementById('loginForm').innerHTML=`<div style="background:rgba(255,255,255,.14);border-radius:16px;padding:22px;text-align:center;color:#fff">
     <div style="font-size:46px">⏳</div>
     <h3 style="margin:10px 0 6px">${lang==='ta'?'விண்ணப்பம் அனுப்பப்பட்டது!':'Application submitted!'}</h3>
-    <div style="font-size:13px;opacity:.9;line-height:1.5">${lang==='ta'?'Admin உங்க details verify பண்ணி approve பண்ணுவாங்க. Approve ஆனதும் உங்க email-ku அறிவிப்பு வரும் 📧. அப்புறம் இதே number + OTP-ல login பண்ணலாம்.':'The admin will verify your details and approve. You will get an email when approved 📧. Then log in with this number + OTP.'}</div>
+    <div style="font-size:13px;opacity:.9;line-height:1.5">${lang==='ta'?'Admin உங்க details-ஐ <b>12–24 மணி நேரத்துக்குள்</b> verify பண்ணி approve பண்ணுவாங்க. Approve ஆனதும் உங்க email-ku அறிவிப்பு வரும் 📧. அப்புறம் இதே number + OTP-ல login பண்ணலாம். App-ஐ மறுபடி திறந்தா இதே status தான் காட்டும்.':'The admin will verify your details and approve within <b>12–24 hours</b>. You will get an email when approved 📧. Then log in with this number + OTP. Re-opening the app shows this same status.'}</div>
     <button class="rolebtn solid" style="margin-top:14px" onclick="backRole()">${lang==='ta'?'சரி':'OK'}</button>
   </div>`;
 }
@@ -461,17 +496,41 @@ function doCook(id,name){LOGGED_COOK=id;CURRENT={role:'cook',name};saveSession({
 function doRider(name,phone){RIDER={name,phone};CURRENT={role:'rider',name};saveSession({role:'rider',name,phone});enter('rider','🛵 '+name);}
 function doAdmin(){const p=(document.getElementById('li-pass').value||'').trim();if(p!=='1234'){toast(lang==='ta'?'தவறான கடவுச்சொல்':'Wrong passcode');return;}CURRENT={role:'admin',name:'Owner'};enter('admin','🛠️ Owner');}
 function enter(r,label){role=r;document.getElementById('loginScreen').classList.add('hide');document.getElementById('appbar').classList.remove('hide');document.getElementById('liveban').classList.remove('hide');document.getElementById('phoneWrap').classList.remove('hide');document.getElementById('ab-role').textContent=label;document.getElementById('lgl').textContent=lang.toUpperCase();document.getElementById('ab-logout').textContent=t('logout');document.getElementById('lbl-live').textContent=t('liveb');render();initAudio();startPolling();}
-function logout(){clearSession();stopPolling();CURRENT=null;LOGGED_COOK=null;CUST_PHONE=null;RIDER=null;closeSheet();document.getElementById('appbar').classList.add('hide');document.getElementById('liveban').classList.add('hide');document.getElementById('phoneWrap').classList.add('hide');document.getElementById('loginScreen').classList.remove('hide');backRole();}
+function logout(){clearSession();stopPolling();CURRENT=null;LOGGED_COOK=null;CUST_PHONE=null;RIDER=null;custTab='foods';cookTab='orders';CUST_LOC={lat:null,lng:null};closeSheet();document.getElementById('phoneWrap').classList.remove('hasnav');document.getElementById('appbar').classList.add('hide');document.getElementById('liveban').classList.add('hide');document.getElementById('phoneWrap').classList.add('hide');document.getElementById('loginScreen').classList.remove('hide');backRole();}
 
 function custStage(o){return o.status==='cooking'?1:(o.status==='ready'||o.status==='assigned')?2:o.status==='out'?3:o.status==='arrived'?4:o.status==='delivered'?5:0;}
 let role='cust';
 function loading(){document.getElementById('view').innerHTML=`<div class="loader"><div class="spin"></div>${t('loading')}</div>`;}
-async function render(){ if(!CURRENT)return; try{ role==='cust'?await renderCust():role==='cook'?await renderCook():role==='rider'?await renderRider():await renderAdmin(); }
+async function render(){ if(!CURRENT)return;
+  if(role!=='cust'&&role!=='cook')document.getElementById('phoneWrap').classList.remove('hasnav');
+  try{ role==='cust'?await renderCust():role==='cook'?await renderCook():role==='rider'?await renderRider():await renderAdmin(); }
   catch(e){ document.getElementById('view').innerHTML=`<div class="loader">⚠️ ${t('err')}<br><small>${e.message}</small><br><button class="btn" style="margin-top:12px" onclick="render()">${t('loading')}</button></div>`; } }
 
 /* ============ CUSTOMER ============ */
-let cart={cookId:null,cook:null,menu:[],sel:{},plan:0};
+let cart={cookId:null,cook:null,menu:[],sel:{},notes:{},extras:{},plan:0};
 let custAddr={text:'',lat:null,lng:null};
+let CUST_LOC={lat:null,lng:null};   // customer location for distance (km) to cook
+let COOKS_CACHE=[];
+/* straight-line distance in km (Haversine) */
+function distKm(a,b,c,d){if([a,b,c,d].some(v=>v==null))return null;const R=6371,rad=x=>x*Math.PI/180;
+  const dLat=rad(c-a),dLng=rad(d-b);const s=Math.sin(dLat/2)**2+Math.cos(rad(a))*Math.cos(rad(c))*Math.sin(dLng/2)**2;
+  return R*2*Math.atan2(Math.sqrt(s),Math.sqrt(1-s));}
+function cookDistLabel(c){const d=distKm(CUST_LOC.lat,CUST_LOC.lng,c.lat,c.lng);
+  if(d==null)return (lang==='ta'?'📍 தூரம் பார்க்க click':'📍 Tap for distance');
+  return '📍 ~'+(d<1?Math.round(d*1000)+' m':d.toFixed(1)+' km')+(lang==='ta'?' தூரம்':' away');}
+/* show distance only — NEVER the exact kitchen address/map (cook cooks at home) */
+function showCookDist(id){
+  const c=COOKS_CACHE.find(x=>x.id===id);if(!c)return;
+  const go=()=>{const d=distKm(CUST_LOC.lat,CUST_LOC.lng,c.lat,c.lng);
+    if(d==null){toast(lang==='ta'?'இருப்பிடம் கிடைக்கல':'Location unavailable');return;}
+    const km=d<1?Math.round(d*1000)+' m':d.toFixed(1)+' km';
+    showBanner((lang==='ta'?`🍲 ${c.name} உங்ககிட்ட இருந்து ~${km} தூரம். வீட்லயே சமைக்கறாங்க — exact முகவரி delivery நேரத்துல மட்டும்.`:`🍲 ${c.name} is ~${km} from you. Home kitchen — exact address only at delivery.`));};
+  if(CUST_LOC.lat!=null){go();return;}
+  if(!navigator.geolocation){toast(lang==='ta'?'இருப்பிடம் கிடைக்கல':'Location unavailable');return;}
+  toast(lang==='ta'?'இருப்பிடம் எடுக்கிறது...':'Getting location...');
+  navigator.geolocation.getCurrentPosition(p=>{CUST_LOC={lat:p.coords.latitude,lng:p.coords.longitude};go();renderCust();},
+    e=>{toast(lang==='ta'?'இருப்பிட அனுமதி வேண்டும்':'Location permission needed');},{enableHighAccuracy:true,timeout:8000});
+}
 function useMyLocation(){
   const m=document.getElementById('locmsg');
   if(!navigator.geolocation){if(m)m.textContent=lang==='ta'?'இருப்பிடம் கிடைக்கல':'Location not available';return;}
@@ -479,23 +538,39 @@ function useMyLocation(){
   navigator.geolocation.getCurrentPosition(p=>{custAddr.lat=p.coords.latitude;custAddr.lng=p.coords.longitude;if(m)m.textContent='✅ '+(lang==='ta'?'இருப்பிடம் சேமிக்கப்பட்டது':'Location captured');},e=>{if(m)m.textContent=lang==='ta'?'இருப்பிட அனுமதி மறுக்கப்பட்டது':'Location permission denied';},{enableHighAccuracy:true,timeout:8000});
 }
 const plans=[{n:{ta:"ஒரு நாள்",en:"One day"},m:1},{n:{ta:"வாரம் (6+1)",en:"Weekly (6+1)"},m:5},{n:{ta:"மாதம்",en:"Monthly"},m:22}];
+let custTab='foods';
 async function renderCust(){
   loading();
   const custPh=(CUST_PHONE||'').replace('cust-','');
   const [cooks,myOrders,prof]=await Promise.all([api('/api/cooks'),api('/api/orders?customerPhone='+encodeURIComponent(CUST_PHONE)),api('/api/customers/'+encodeURIComponent(custPh)).catch(()=>null)]);
   if(prof&&prof.addresses)CUST_ADDRS=prof.addresses;
-  document.getElementById('view').innerHTML=`
-    <div class="top"><h1>🍲 Amma Samayal</h1><div class="sub">📍 Thiruvottiyur, Chennai</div></div>
-    <div class="wrap">
-      ${(()=>{const act=myOrders.filter(o=>custStage(o)<5);const past=myOrders.filter(o=>custStage(o)>=5);
-        return (act.length?`<div class="sec-title">${t('active')}</div>${act.map(custOrderCard).join('')}`:'')
-             +(past.length?`<div class="sec-title">${t('pastord')} 📋</div>${past.map(custPastCard).join('')}`:'');})()}
-      <div class="sec-title">${t('near')} 👩‍🍳</div>
+  COOKS_CACHE=cooks;
+  // customer location for distance: first saved address that has coordinates
+  if(CUST_LOC.lat==null){const a=(CUST_ADDRS||[]).find(x=>x.lat!=null);if(a)CUST_LOC={lat:a.lat,lng:a.lng};}
+  const act=myOrders.filter(o=>custStage(o)<5);const past=myOrders.filter(o=>custStage(o)>=5);
+  let body='';
+  if(custTab==='foods'){
+    body=`<div class="sec-title">${t('near')} 👩‍🍳</div>
       ${cooks.map(c=>`<div class="card" onclick="openCook(${c.id})"><div class="row"><div class="av" style="background:${cbg(c.id)}">${cemoji(c.id)}</div>
         <div style="flex:1"><h3>${c.name} <span class="veg ${c.veg?'':'non'}"></span></h3>
-        <div class="meta">${c.area||'Chennai'} · <span class="rt">★ ${(c.rating||4.5).toFixed?c.rating.toFixed(1):c.rating}</span></div></div>
-        <button class="btn" onclick="event.stopPropagation();openCook(${c.id})">${t('select')} ›</button></div></div>`).join('')}
+        <div class="meta">★ ${(c.rating||4.5).toFixed?c.rating.toFixed(1):c.rating}</div>
+        <div class="meta" style="color:var(--brand);font-weight:700;margin-top:3px;cursor:pointer" onclick="event.stopPropagation();showCookDist(${c.id})">${cookDistLabel(c)}</div></div>
+        <button class="btn" onclick="event.stopPropagation();openCook(${c.id})">${t('select')} ›</button></div></div>`).join('')}`;
+  } else if(custTab==='active'){
+    body=`<div class="sec-title">${t('active')} 🛵</div>${act.length?act.map(custOrderCard).join(''):`<div class="empty">${lang==='ta'?'நடப்பு ஆர்டர் இல்லை':'No active orders'} 🍽️<br><small>${lang==='ta'?'Foods tab-ல order பண்ணுங்க':'Order from the Foods tab'}</small></div>`}`;
+  } else {
+    body=`<div class="sec-title">${t('pastord')} 📋</div>${past.length?past.map(custPastCard).join(''):`<div class="empty">${lang==='ta'?'பழைய ஆர்டர் இல்லை':'No previous orders yet'}</div>`}`;
+  }
+  const nav=(k,ic,lbl,badge)=>`<div class="${custTab===k?'on':''}" onclick="custTab='${k}';renderCust()"><span class="ic">${ic}</span>${lbl}${badge?`<span class="pdot">${badge}</span>`:''}</div>`;
+  document.getElementById('view').innerHTML=`
+    <div class="top"><h1>🍲 Amma Samayal</h1><div class="sub">📍 Thiruvottiyur, Chennai</div></div>
+    <div class="wrap">${body}</div>
+    <div class="bnav">
+      ${nav('foods','🍲',lang==='ta'?'சாப்பாடு':'Foods','')}
+      ${nav('active','🛵',lang==='ta'?'நடப்பு':'Active',act.length||'')}
+      ${nav('past','📋',lang==='ta'?'பழையவை':'Previous','')}
     </div>`;
+  document.getElementById('phoneWrap').classList.add('hasnav');
 }
 function custOrderCard(o){const st=custStage(o);const live=st<5;const emoji=cemoji(o.cook_id);
   return `<div class="card"><div class="row"><div class="av" style="background:${cbg(o.cook_id)}">${emoji}</div>
@@ -512,24 +587,43 @@ function custPastCard(o){const emoji=cemoji(o.cook_id);
     ${o.stars?`<button class="btn" style="background:var(--accent)" onclick="openCook(${o.cook_id})">${t('reorder')}</button>`:`<button class="btn g" onclick="openRate(${o.id})">${t('rate')}</button>`}
     </div></div>`;}
 
+/* complementary + paid add-ons (shown once any food is selected) */
+const ADDONS=[
+  {id:'x_pickle',name:{ta:'கூடுதல் ஊறுகாய்',en:'Extra pickle'},price:10},
+  {id:'x_kurma',name:{ta:'கூடுதல் குருமா',en:'Extra kurma'},price:20},
+  {id:'x_podi',name:{ta:'கூடுதல் பொடி + நெய்',en:'Extra podi + ghee'},price:15},
+];
 async function openCook(id){
   document.getElementById('sheetInner').innerHTML=`<div class="loader"><div class="spin"></div>${t('loading')}</div>`;showSheet();
   const [cooks,menu]=await Promise.all([api('/api/cooks'),api('/api/cooks/'+id+'/menu')]);
-  cart={cookId:id,cook:cooks.find(c=>c.id===id),menu:menu.filter(m=>m.available),sel:{},plan:0};
+  cart={cookId:id,cook:cooks.find(c=>c.id===id),menu:menu.filter(m=>m.available&&!m.locked),sel:{},notes:{},extras:{},plan:0};
   renderCookSheet();
+}
+function cartSub(){
+  let s=Object.entries(cart.sel).reduce((a,[mid,q])=>a+cart.menu.find(m=>m.id==mid).price*q,0);
+  s+=Object.entries(cart.extras).reduce((a,[id,q])=>a+(ADDONS.find(x=>x.id===id).price*q),0);
+  return s;
 }
 function renderCookSheet(){
   const c=cart.cook;
   const count=Object.values(cart.sel).reduce((a,b)=>a+b,0);
-  const sub=Object.entries(cart.sel).reduce((a,[mid,q])=>a+cart.menu.find(m=>m.id==mid).price*q,0);
+  const sub=cartSub();const anyFood=count>0;
   document.getElementById('sheetInner').innerHTML=`
-    <div class="sh-head"><button class="back" onclick="closeSheet()">←</button><div><h2>${c.name}</h2><div class="meta">${c.area||'Chennai'} · ★ ${c.rating}</div></div></div>
+    <div class="sh-head"><button class="back" onclick="closeSheet()">←</button><div><h2>${c.name}</h2><div class="meta" style="cursor:pointer" onclick="showCookDist(${c.id})">${cookDistLabel(c)} · ★ ${c.rating}</div></div></div>
     <div class="sec-title" style="font-size:14px">${t('selfood')}</div>
-    ${cart.menu.length?cart.menu.map(m=>{const q=cart.sel[m.id]||0;return `<div class="mi"><div style="flex:1"><b style="font-size:13px"><span class="veg ${m.veg?'':'non'}" style="margin-right:4px"></span>${m.name}</b><small>${m.description||''} · ₹${m.price}</small></div>
-      ${q>0?`<div class="stepper"><button onclick="chg(${m.id},-1)">−</button><span>${q}</span><button onclick="chg(${m.id},1)">+</button></div>`:`<button class="addmini" onclick="chg(${m.id},1)">+ ${t('add')}</button>`}</div>`;}).join(''):`<div class="empty">No dishes yet</div>`}
-    <button class="btn full" ${count?'':'disabled'} onclick="openPlan()">${count?`${t('proceed')} · ${count} · ₹${sub} →`:t('proceed')}</button>`;
+    ${cart.menu.length?cart.menu.map(m=>{const q=cart.sel[m.id]||0;return `<div class="mi" style="flex-wrap:wrap"><div style="flex:1;min-width:60%"><b style="font-size:13px"><span class="veg ${m.veg?'':'non'}" style="margin-right:4px"></span>${m.name}</b><small>${m.description||''} · ₹${m.price}</small></div>
+      ${q>0?`<div class="stepper"><button onclick="chg(${m.id},-1)">−</button><span>${q}</span><button onclick="chg(${m.id},1)">+</button></div>`:`<button class="addmini" onclick="chg(${m.id},1)">+ ${t('add')}</button>`}
+      ${q>0?`<textarea class="notebox" placeholder="${lang==='ta'?'📝 குறிப்பு: எ.கா கூடுதல் காரம் / காரம் குறைவு':'📝 Note: e.g. extra spicy / less spicy'}" oninput="cart.notes[${m.id}]=this.value">${cart.notes[m.id]||''}</textarea>`:''}</div>`;}).join(''):`<div class="empty">No dishes yet</div>`}
+    ${anyFood?`<div class="card" style="box-shadow:none;border:1px dashed var(--brand);background:#f7fdf9;margin-top:10px">
+      <div style="font-size:12px;font-weight:800;color:var(--brand-dark);margin-bottom:4px">🎁 ${lang==='ta'?'இலவசம்: ஊறுகாய் + குருமா உடன் வரும்':'Free: pickle + kurma included'}</div>
+      <div class="meta" style="margin-bottom:6px">${lang==='ta'?'கூடுதலா வேணும்னா கீழே add பண்ணுங்க:':'Want more? Add extras below:'}</div>
+      ${ADDONS.map(a=>{const q=cart.extras[a.id]||0;return `<div class="addon"><div style="font-size:12.5px">${a.name[lang]} <b style="color:var(--brand)">+₹${a.price}</b></div>
+        ${q>0?`<div class="stepper"><button onclick="chgExtra('${a.id}',-1)">−</button><span>${q}</span><button onclick="chgExtra('${a.id}',1)">+</button></div>`:`<button class="addmini" onclick="chgExtra('${a.id}',1)">+ ${t('add')}</button>`}</div>`;}).join('')}
+    </div>`:''}
+    <button class="btn full" ${anyFood?'':'disabled'} onclick="openPlan()">${anyFood?`${t('proceed')} · ${count} · ₹${sub} →`:t('proceed')}</button>`;
 }
-function chg(mid,d){cart.sel[mid]=(cart.sel[mid]||0)+d;if(cart.sel[mid]<=0)delete cart.sel[mid];renderCookSheet();}
+function chg(mid,d){cart.sel[mid]=(cart.sel[mid]||0)+d;if(cart.sel[mid]<=0){delete cart.sel[mid];delete cart.notes[mid];}renderCookSheet();}
+function chgExtra(id,d){cart.extras[id]=(cart.extras[id]||0)+d;if(cart.extras[id]<=0)delete cart.extras[id];renderCookSheet();}
 function pickAddr(i){const a=CUST_ADDRS[i];if(!a)return;custAddr={text:a.text||'',lat:a.lat||null,lng:a.lng||null};openPlan();}
 async function saveNewAddress(){
   const text=(custAddr.text||'').trim();if(!text)return;
@@ -539,26 +633,45 @@ async function saveNewAddress(){
   try{await api('/api/customers/'+encodeURIComponent(phone)+'/addresses',{method:'PUT',body:JSON.stringify({addresses:CUST_ADDRS})});}catch(e){}
 }
 function openPlan(){
-  const sub=Object.entries(cart.sel).reduce((a,[mid,q])=>a+cart.menu.find(m=>m.id==mid).price*q,0);
+  const sub=cartSub();
+  const foodLines=Object.entries(cart.sel).map(([mid,q])=>{const m=cart.menu.find(x=>x.id==mid);const nt=(cart.notes[mid]||'').trim();
+    return `<div class="meta" style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span>${m.name} ×${q}${nt?`<br><span style="color:var(--brand)">📝 ${nt}</span>`:''}</span><span>₹${m.price*q}</span></div>`;}).join('');
+  const extraLines=Object.entries(cart.extras).map(([id,q])=>{const a=ADDONS.find(x=>x.id===id);
+    return `<div class="meta" style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0;color:var(--brand-dark)"><span>➕ ${a.name[lang]} ×${q}</span><span>₹${a.price*q}</span></div>`;}).join('');
   document.getElementById('sheetInner').innerHTML=`
     <div class="sh-head"><button class="back" onclick="renderCookSheet()">←</button><h2>${t('plan')}</h2></div>
-    <div class="card" style="box-shadow:none;border:1px solid var(--line)">${Object.entries(cart.sel).map(([mid,q])=>{const m=cart.menu.find(x=>x.id==mid);return `<div class="meta" style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span>${m.name} ×${q}</span><span>₹${m.price*q}</span></div>`;}).join('')}</div>
+    <div class="card" style="box-shadow:none;border:1px solid var(--line)">${foodLines}${extraLines}</div>
     ${plans.map((p,i)=>`<div class="plan ${i===cart.plan?'on':''}" onclick="cart.plan=${i};openPlan()"><div><b style="font-size:14px">${p.n[lang]}</b></div><b>₹${sub*p.m}</b></div>`).join('')}
     <label>${lang==='ta'?'📍 டெலிவரி முகவரி':'📍 Delivery address'}</label>
-    ${CUST_ADDRS.length?`<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px">${CUST_ADDRS.map((a,i)=>`<div class="plan ${custAddr.text===a.text?'on':''}" style="padding:9px" onclick="pickAddr(${i})"><div style="font-size:12px"><b>${a.label||'📍'}</b> — ${a.text||''}</div></div>`).join('')}<div class="meta" style="margin-top:2px">${lang==='ta'?'அல்லது புதிய முகவரி கீழே type பண்ணு:':'Or type a new address below:'}</div></div>`:''}
-    <textarea id="addr" rows="2" placeholder="${lang==='ta'?'வீட்டு எண், தெரு, ஏரியா, pincode':'House no, street, area, pincode'}" style="width:100%;border:1.5px solid var(--line);border-radius:10px;padding:11px;font-size:14px;font-family:inherit;resize:vertical">${custAddr.text||''}</textarea>
-    <button class="btn full" style="background:#fff;color:var(--brand);border:1.5px solid var(--brand);margin-top:8px" onclick="useMyLocation()">📍 ${lang==='ta'?'என் இருப்பிடத்தை பகிர்':'Use my current location'}</button>
+    ${CUST_ADDRS.length?`<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px">${CUST_ADDRS.map((a,i)=>`<div class="plan ${custAddr.text===a.text?'on':''}" style="padding:9px;align-items:center"><div style="font-size:12px;flex:1;cursor:pointer" onclick="pickAddr(${i})"><b>${a.label||'📍'}</b> — ${a.text||''}</div><button onclick="event.stopPropagation();deleteAddress(${i})" style="background:none;border:none;color:var(--red);font-size:16px;cursor:pointer;padding:0 4px">🗑</button></div>`).join('')}</div><div class="meta" style="margin-bottom:4px">${lang==='ta'?'அல்லது புதிய முகவரி கீழே type பண்ணு:':'Or type a new address below:'}</div>`:''}
+    <textarea id="addr" rows="2" placeholder="${lang==='ta'?'வீட்டு எண், தெரு, ஏரியா, pincode':'House no, street, area, pincode'}" style="width:100%;border:1.5px solid var(--line);border-radius:10px;padding:11px;font-size:14px;font-family:inherit;resize:vertical" oninput="custAddr.text=this.value">${custAddr.text||''}</textarea>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn" style="flex:1;background:#fff;color:var(--brand);border:1.5px solid var(--brand)" onclick="useMyLocation()">📍 ${lang==='ta'?'இருப்பிடம்':'Location'}</button>
+      <button class="btn" style="flex:1;background:#fff;color:var(--brand-dark);border:1.5px solid var(--brand-dark)" onclick="saveAddrFromInput()">💾 ${lang==='ta'?'முகவரி சேமி':'Save address'}</button>
+    </div>
     <div class="meta" id="locmsg" style="text-align:center;margin-top:4px">${custAddr.lat?('✅ '+(lang==='ta'?'இருப்பிடம் சேமிக்கப்பட்டது':'Location captured')):''}</div>
     <div class="deliv" style="color:#166534;background:#f0fdf4;border-color:#bbf7d0;margin-top:10px">🚚 ${lang==='ta'?'டெலிவரி இலவசம்':'Free delivery'} · 💳 UPI / Cash</div>
     <button class="btn full" id="confirmBtn" onclick="placeOrder()">${t('confirm')}</button>`;
+}
+async function deleteAddress(i){
+  CUST_ADDRS.splice(i,1);
+  const phone=(CUST_PHONE||'').replace('cust-','');
+  try{await api('/api/customers/'+encodeURIComponent(phone)+'/addresses',{method:'PUT',body:JSON.stringify({addresses:CUST_ADDRS})});}catch(e){}
+  toast(lang==='ta'?'முகவரி நீக்கப்பட்டது':'Address deleted');openPlan();
+}
+async function saveAddrFromInput(){
+  const el=document.getElementById('addr');if(el)custAddr.text=el.value.trim();
+  if(!custAddr.text){toast(lang==='ta'?'முகவரி type பண்ணுங்க':'Type an address first');return;}
+  await saveNewAddress();toast(lang==='ta'?'✅ முகவரி சேமிக்கப்பட்டது':'✅ Address saved');openPlan();
 }
 async function placeOrder(){
   const addrEl=document.getElementById('addr');if(addrEl)custAddr.text=addrEl.value.trim();
   if(!custAddr.text&&!custAddr.lat){toast(lang==='ta'?'டெலிவரி முகவரி கொடுங்க':'Please add a delivery address');return;}
   saveNewAddress();
   const btn=document.getElementById('confirmBtn');btn.disabled=true;btn.textContent='...';
-  const sub=Object.entries(cart.sel).reduce((a,[mid,q])=>a+cart.menu.find(m=>m.id==mid).price*q,0);
-  const items=Object.entries(cart.sel).map(([mid,q])=>{const m=cart.menu.find(x=>x.id==mid);return {name:m.name,qty:q,price:m.price};});
+  const sub=cartSub();
+  const items=Object.entries(cart.sel).map(([mid,q])=>{const m=cart.menu.find(x=>x.id==mid);return {name:m.name,qty:q,price:m.price,note:(cart.notes[mid]||'').trim()};});
+  Object.entries(cart.extras).forEach(([id,q])=>{const a=ADDONS.find(x=>x.id===id);items.push({name:'➕ '+a.name[lang],qty:q,price:a.price,extra:true});});
   const total=sub*plans[cart.plan].m;
   try{
     const res=await api('/api/orders',{method:'POST',body:JSON.stringify({cookId:cart.cookId,customerName:CURRENT.name,customerPhone:CUST_PHONE,customerAddress:custAddr.text,customerLat:custAddr.lat,customerLng:custAddr.lng,items,total,plan:plans[cart.plan].n[lang]})});
@@ -603,18 +716,32 @@ async function renderCook(){
   loading();
   const [orders,menu]=await Promise.all([api('/api/orders?cookId='+LOGGED_COOK),api('/api/cooks/'+LOGGED_COOK+'/menu')]);
   const earn=orders.filter(o=>o.status==='delivered').reduce((a,o)=>a+o.total,0);
+  const newCount=orders.filter(o=>o.status==='new').length;
+  const body=cookTab==='orders'?renderCookOrders(orders):cookTab==='past'?renderCookPast(orders):cookTab==='menu'?renderCookMenu(menu):renderCookReviews(orders);
+  const nav=(k,ic,lbl,badge)=>`<div class="${cookTab===k?'on':''}" onclick="cookTab='${k}';renderCook()"><span class="ic">${ic}</span>${lbl}${badge?`<span class="pdot">${badge}</span>`:''}</div>`;
   document.getElementById('view').innerHTML=`
-    <div class="top cook"><h1>${t('cookhi')}, ${CURRENT.name} 👩‍🍳</h1><div class="sub">📍 Thiruvottiyur · ${orders.filter(o=>o.status==='new').length} ${lang==='ta'?'புதிய':'new'}</div></div>
+    <div class="top cook"><h1>${t('cookhi')}, ${CURRENT.name} 👩‍🍳</h1><div class="sub">📍 Thiruvottiyur · ${newCount} ${lang==='ta'?'புதிய':'new'}</div></div>
     <div class="wrap">
-      <div class="kpis"><div class="kpi"><b>${orders.filter(o=>o.status==='new').length}</b><small>${lang==='ta'?'புதிய':'New'}</small></div><div class="kpi"><b>₹${earn}</b><small>${lang==='ta'?'வருமானம்':'Earned'}</small></div><div class="kpi"><b>${orders.filter(o=>o.status==='delivered').length}</b><small>${lang==='ta'?'முடிந்தது':'Done'}</small></div></div>
-      <div style="display:flex;gap:6px;background:#f3f4f6;border-radius:10px;padding:5px;margin-bottom:12px">
-        <div style="flex:1;text-align:center;padding:8px 4px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;${cookTab==='orders'?'background:var(--brand);color:#fff':'color:#6b7280'}" onclick="cookTab='orders';renderCook()">📥 ${t('orders')}</div>
-        <div style="flex:1;text-align:center;padding:8px 4px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;${cookTab==='menu'?'background:var(--brand);color:#fff':'color:#6b7280'}" onclick="cookTab='menu';renderCook()">🍲 ${t('mymenu')}</div>
-        <div style="flex:1;text-align:center;padding:8px 4px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;${cookTab==='reviews'?'background:var(--brand);color:#fff':'color:#6b7280'}" onclick="cookTab='reviews';renderCook()">⭐ ${t('myreviews')}</div>
-      </div>
+      <div class="kpis"><div class="kpi"><b>${newCount}</b><small>${lang==='ta'?'புதிய':'New'}</small></div><div class="kpi"><b>₹${earn}</b><small>${lang==='ta'?'வருமானம்':'Earned'}</small></div><div class="kpi"><b>${orders.filter(o=>o.status==='delivered').length}</b><small>${lang==='ta'?'முடிந்தது':'Done'}</small></div></div>
       <button class="btn full" style="background:#fff;color:var(--brand);border:1.5px solid var(--brand);margin-top:0;margin-bottom:12px" onclick="renderCook()">🔄 Refresh</button>
-      ${cookTab==='orders'?renderCookOrders(orders):cookTab==='menu'?renderCookMenu(menu):renderCookReviews(orders)}
+      ${body}
+    </div>
+    <div class="bnav">
+      ${nav('orders','📥',t('orders'),newCount||'')}
+      ${nav('past','📋',lang==='ta'?'பழையவை':'Previous','')}
+      ${nav('menu','🍲',t('mymenu'),'')}
+      ${nav('reviews','⭐',t('myreviews'),'')}
     </div>`;
+  document.getElementById('phoneWrap').classList.add('hasnav');
+}
+function renderCookPast(orders){
+  const past=orders.filter(o=>o.status==='delivered');
+  if(!past.length)return `<div class="empty">${lang==='ta'?'முடிந்த ஆர்டர் இல்லை':'No completed orders yet'} 📋</div>`;
+  return past.map(o=>`<div class="card" style="border-left:4px solid var(--accent)">
+    <div style="display:flex;justify-content:space-between"><div><b>#${o.id}</b> <span style="color:var(--accent);font-size:11px;font-weight:700">✓ ${stepTxt[5][lang][0]}</span><div class="meta">${o.customer_name||''}${o.created_at?' · 📅 '+fmtDate(o.created_at):''}</div></div>${o.stars?`<span style="color:var(--gold);font-size:13px">★ ${o.stars}</span>`:''}</div>
+    <div style="margin:8px 0;font-size:12px">${o.items.map(i=>i.name+' ×'+i.qty).join(', ')}</div>
+    <div class="foot"><span class="meta">${t('total')}</span><b>₹${o.total}</b></div>
+  </div>`).join('');
 }
 function renderCookReviews(orders){
   const rated=orders.filter(o=>o.stars);
@@ -635,7 +762,7 @@ function renderCookOrders(orders){
   const riderLine=(o,note)=>`<div class="deliv" style="margin-top:10px"><div style="display:flex;align-items:center;gap:9px"><div class="av" style="width:38px;height:38px;background:#dbeafe;font-size:18px">🛵</div><div style="flex:1"><small style="color:var(--muted);font-size:11px">${t('rider')}</small><br><b>${o.rider_name}</b> · ${o.rider_phone}</div><a class="callb" style="text-decoration:none" href="tel:${o.rider_phone}">📞</a></div><div style="margin-top:9px;font-size:12px;font-weight:700;color:#1e40af;text-align:center">${note}</div></div>`;
   return act.map(o=>`<div class="card" style="border-left:4px solid ${bcol[o.status]||'var(--gold)'}">
       <div style="display:flex;justify-content:space-between"><div><b>#${o.id}</b><div class="meta">${o.customer_name||''} · ${o.plan||''}${o.created_at?' · 📅 '+fmtDate(o.created_at):''}</div></div><span class="badge b-out">${badge[o.status]||o.status}</span></div>
-      <div style="margin:8px 0;font-size:13px">${o.items.map(i=>`<div style="display:flex;justify-content:space-between;padding:2px 0"><span>${i.name} ×${i.qty}</span><span>₹${i.price*i.qty}</span></div>`).join('')}</div>
+      <div style="margin:8px 0;font-size:13px">${o.items.map(i=>`<div style="display:flex;justify-content:space-between;padding:2px 0"><span>${i.name} ×${i.qty}${i.note?`<br><span style="color:var(--brand);font-weight:700">📝 ${i.note}</span>`:''}</span><span>₹${i.price*i.qty}</span></div>`).join('')}</div>
       <div class="foot"><span class="meta">${t('total')}</span><b>₹${o.total}</b></div>
       ${o.status==='new'?`<div style="display:flex;gap:8px;margin-top:10px"><button class="mini2" style="flex:1;padding:10px;background:#fee2e2;color:var(--red)" onclick="cookAct(${o.id},'rejected')">${t('reject')}</button><button class="btn" style="flex:1" onclick="cookAct(${o.id},'cooking')">${t('accept')}</button></div>`:''}
       ${o.status==='cooking'?`<button class="btn full" style="background:var(--gold)" onclick="cookAct(${o.id},'ready')">${t('ready')}</button>`:''}
@@ -650,9 +777,12 @@ async function cookAct(id,s){
   catch(e){toast(t('err'));}
 }
 function renderCookMenu(menu){
-  return `${menu.map(m=>`<div class="card"><div style="display:flex;align-items:center;gap:8px"><div style="flex:1"><b style="font-size:13px"><span class="veg ${m.veg?'':'non'}" style="margin-right:4px"></span>${m.name}</b><small class="meta">${m.description||''} · ₹${m.price}</small></div>
-    <div onclick="toggleDish(${m.id},${m.available?0:1})" style="width:40px;height:23px;background:${m.available?'var(--accent)':'#d1d5db'};border-radius:20px;position:relative;cursor:pointer"><div style="position:absolute;width:17px;height:17px;background:#fff;border-radius:50%;top:3px;left:${m.available?'20px':'3px'};transition:.2s"></div></div>
-    <button onclick="delDish(${m.id})" style="background:none;border:none;color:var(--red);font-size:17px;cursor:pointer">🗑</button></div></div>`).join('')}
+  return `${menu.map(m=>`<div class="card" style="${m.locked?'border-left:4px solid var(--red);opacity:.85':''}"><div style="display:flex;align-items:center;gap:8px"><div style="flex:1"><b style="font-size:13px"><span class="veg ${m.veg?'':'non'}" style="margin-right:4px"></span>${m.name}</b><small class="meta">${m.description||''} · ₹${m.price}</small></div>
+    ${m.locked?`<span class="badge b-lock">🔒 ${lang==='ta'?'பூட்டியது':'Locked'}</span>`:`<div onclick="toggleDish(${m.id},${m.available?0:1})" style="width:40px;height:23px;background:${m.available?'var(--accent)':'#d1d5db'};border-radius:20px;position:relative;cursor:pointer"><div style="position:absolute;width:17px;height:17px;background:#fff;border-radius:50%;top:3px;left:${m.available?'20px':'3px'};transition:.2s"></div></div>`}
+    <button onclick="delDish(${m.id})" style="background:none;border:none;color:var(--red);font-size:17px;cursor:pointer">🗑</button></div>
+    ${m.warned?`<div style="background:#fef3c7;color:#92400e;font-size:11.5px;font-weight:700;border-radius:8px;padding:7px;margin-top:8px">⚠️ ${lang==='ta'?'Owner எச்சரிக்கை: இந்த உணவு பத்தி கெட்ட கருத்து வந்துள்ளது. தரத்தை சரிசெய்யுங்க.':'Owner warning: bad feedback on this dish. Please fix the quality.'}</div>`:''}
+    ${m.locked?`<div style="background:#fee2e2;color:#b91c1c;font-size:11.5px;font-weight:700;border-radius:8px;padding:7px;margin-top:8px">🔒 ${lang==='ta'?'Owner இந்த உணவை தற்காலிகமா பூட்டிவிட்டார் — customer-க்கு தெரியாது. Owner-ஐ தொடர்பு கொள்ளுங்க.':'Owner has locked this dish — hidden from customers. Please contact the owner.'}</div>`:''}
+    </div>`).join('')}
     <button class="btn full" style="background:#fff;color:var(--brand);border:2px dashed var(--brand)" onclick="openAdd()">${t('adddish')}</button>`;
 }
 async function toggleDish(id,av){try{await api('/api/menu/'+id,{method:'PATCH',body:JSON.stringify({available:av})});renderCook();}catch(e){toast(t('err'));}}
@@ -729,7 +859,7 @@ async function riderAct(id,s){try{await api('/api/orders/'+id+'/status',{method:
 /* ============ ADMIN ============ */
 async function renderAdmin(){
   loading();
-  const [orders,reviews,cooks,pending]=await Promise.all([api('/api/orders'),api('/api/reviews'),api('/api/cooks'),api('/api/admin/pending').catch(()=>({cooks:[],riders:[]}))]);
+  const [orders,reviews,cooks,pending,alerts,menus]=await Promise.all([api('/api/orders'),api('/api/reviews'),api('/api/cooks'),api('/api/admin/pending').catch(()=>({cooks:[],riders:[]})),api('/api/admin/alerts').catch(()=>[]),api('/api/admin/menus').catch(()=>[])]);
   const pc=pending.cooks||[],pr=pending.riders||[];const pendCount=pc.length+pr.length;
   const docLink=(url,label)=>url?`<a href="${url}" target="_blank" style="color:var(--blue);font-weight:700">🖼️ ${label}</a>`:`<span style="color:var(--muted)">${label}: ${lang==='ta'?'படம் இல்ல':'no photo'}</span>`;
   const cookCard=c=>`<div class="card" style="border-left:4px solid var(--gold)">
@@ -754,6 +884,12 @@ async function renderAdmin(){
     <div class="wrap">
       <button class="btn full" style="background:#fff;color:var(--ink);border:1.5px solid var(--line);margin-top:0;margin-bottom:12px" onclick="renderAdmin()">🔄 Refresh</button>
       <div class="kpis"><div class="kpi"><b>${orders.length}</b><small>${lang==='ta'?'ஆர்டர்':'Orders'}</small></div><div class="kpi"><b style="color:${pendCount?'#b45309':'inherit'}">${pendCount}</b><small>${lang==='ta'?'Approval':'Pending'}</small></div><div class="kpi"><b>${cooks.length}</b><small>${lang==='ta'?'சமையல்':'Cooks'}</small></div></div>
+      ${alerts.length?`<div class="sec-title">🚨 ${lang==='ta'?'Number பிரச்சனை (ஒரே number, பல role)':'Number alerts (one number, many roles)'}</div>${alerts.map(a=>`<div class="card" style="border-left:4px solid var(--red)">
+        <div style="display:flex;justify-content:space-between;align-items:center"><b>📞 ${a.phone}</b><span class="badge b-lock">⚠️ ${lang==='ta'?'மோதல்':'Conflict'}</span></div>
+        <div class="meta" style="margin-top:4px">${a.name?a.name+' — ':''}${lang==='ta'?'முயற்சி':'Tried'}: <b>${a.attempted_role}</b> · ${lang==='ta'?'ஏற்கனவே':'Already'}: <b>${a.existing_roles}</b></div>
+        <div class="meta" style="margin-top:2px">${a.created_at?'📅 '+fmtDate(a.created_at):''}</div>
+        <div style="display:flex;gap:8px;margin-top:9px"><a class="btn" style="flex:1;text-decoration:none;text-align:center" href="tel:${a.phone}">📞 ${lang==='ta'?'அழை':'Call'}</a><button class="mini2" style="flex:1;padding:9px;background:#e5e7eb;color:#374151" onclick="clearAlert(${a.id})">✓ ${lang==='ta'?'சரி':'Clear'}</button></div>
+      </div>`).join('')}`:''}
       ${pendCount?`<div class="sec-title">⏳ ${lang==='ta'?'Approval காத்திருக்கு':'Pending approvals'}</div>${pc.map(cookCard).join('')}${pr.map(riderCard).join('')}`:''}
       <div class="sec-title">${t('live')}</div>
       ${orders.length?orders.map(o=>`<div class="card" style="border-left:4px solid ${o.locked?'#b91c1c':o.status==='delivered'?'var(--accent)':'var(--blue)'}">
@@ -766,10 +902,26 @@ async function renderAdmin(){
       </div>`).join(''):`<div class="empty">${t('noord')}</div>`}
       <div class="sec-title">${t('reviews')}</div>
       ${reviews.length?reviews.map(o=>{const bad=o.stars<=2;return `<div class="review ${bad?'bad':''}"><div style="display:flex;justify-content:space-between"><b style="font-size:13px">Cook #${o.cook_id} · Order #${o.id}</b><span style="color:var(--gold)">${'★'.repeat(o.stars)}${'☆'.repeat(5-o.stars)}</span></div>${o.remark?`<div style="font-size:13px;margin:5px 0">"${o.remark}"</div>`:''}${bad?`<span style="font-size:10px;font-weight:800;padding:2px 8px;border-radius:20px;background:#fee2e2;color:#b91c1c">🚩 ${lang==='ta'?'கவனம்':'Attention'}</span>`:''}</div>`;}).join(''):`<div class="empty">${lang==='ta'?'விமர்சனம் இல்லை':'No reviews yet'}</div>`}
+      <div class="sec-title">🍲 ${lang==='ta'?'Cook மெனு + தரக் கட்டுப்பாடு':'Cook menus & quality'}</div>
+      ${menus.length?menus.map(c=>`<div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center"><b>👩‍🍳 ${c.name}</b><span class="meta">★ ${c.rating} · 📞 ${c.phone||'-'}</span></div>
+        ${c.items.length?c.items.map(m=>`<div style="border-top:1px solid var(--line);padding:8px 0;margin-top:6px">
+          <div style="display:flex;justify-content:space-between;align-items:center"><div style="font-size:13px"><b><span class="veg ${m.veg?'':'non'}" style="margin-right:4px"></span>${m.name}</b> · ₹${m.price} ${m.locked?'<span class="badge b-lock">🔒 LOCK</span>':m.warned?'<span class="badge b-cook">⚠️ WARN</span>':m.available?'':'<span class="badge b-out">off</span>'}</div></div>
+          <div style="display:flex;gap:6px;margin-top:7px">
+            <button class="mini2" style="flex:1;padding:7px;background:#fef3c7;color:#92400e" onclick="flagDish(${m.id},'warn',${m.warned?0:1})">${m.warned?(lang==='ta'?'⚠️ எச்சரிக்கை நீக்கு':'⚠️ Un-warn'):(lang==='ta'?'⚠️ எச்சரி':'⚠️ Warn')}</button>
+            <button class="mini2" style="flex:1;padding:7px;${m.locked?'background:#fde68a;color:#92400e':'background:#1f2937;color:#fff'}" onclick="flagDish(${m.id},'lock',${m.locked?0:1})">${m.locked?(lang==='ta'?'🔓 திற':'🔓 Unlock'):(lang==='ta'?'🔒 பூட்டு':'🔒 Lock')}</button>
+          </div></div>`).join(''):`<div class="meta" style="margin-top:6px">${lang==='ta'?'மெனு இல்லை':'No dishes'}</div>`}
+      </div>`).join(''):`<div class="empty">${lang==='ta'?'Cook மெனு இல்லை':'No cook menus'}</div>`}
       <div class="sec-title">${t('allcooks')}</div>
       <div class="card" style="padding:6px"><table><tr><th>#</th><th>Name</th><th>★</th></tr>${cooks.map(c=>`<tr><td>${c.id}</td><td><b>${c.name}</b></td><td>★ ${c.rating}</td></tr>`).join('')}</table></div>
     </div>`;
 }
+async function flagDish(id,kind,val){
+  try{await api('/api/menu/'+id+'/flag',{method:'PATCH',body:JSON.stringify(kind==='lock'?{locked:val}:{warned:val})});
+    toast(kind==='lock'?(val?(lang==='ta'?'🔒 பூட்டப்பட்டது':'Locked'):(lang==='ta'?'🔓 திறக்கப்பட்டது':'Unlocked')):(val?(lang==='ta'?'⚠️ எச்சரிக்கப்பட்டது':'Warned'):(lang==='ta'?'எச்சரிக்கை நீக்கப்பட்டது':'Un-warned')));renderAdmin();}
+  catch(e){toast(t('err'));}
+}
+async function clearAlert(id){try{await api('/api/admin/alerts/'+id+'/clear',{method:'PATCH'});renderAdmin();}catch(e){toast(t('err'));}}
 async function toggleLock(id,v){try{await api('/api/orders/'+id+'/lock',{method:'PATCH',body:JSON.stringify({locked:v})});renderAdmin();}catch(e){toast(t('err'));}}
 async function decideCook(id,decision){try{await api('/api/cooks/'+id+'/approve',{method:'PATCH',body:JSON.stringify({decision})});toast(decision==='approve'?(lang==='ta'?'✅ Approve ஆச்சு, email அனுப்பப்பட்டது':'✅ Approved, email sent'):(lang==='ta'?'Reject ஆச்சு':'Rejected'));renderAdmin();}catch(e){toast(t('err'));}}
 async function decideRider(id,decision){try{await api('/api/riders/'+id+'/approve',{method:'PATCH',body:JSON.stringify({decision})});toast(decision==='approve'?(lang==='ta'?'✅ Approve ஆச்சு, email அனுப்பப்பட்டது':'✅ Approved, email sent'):(lang==='ta'?'Reject ஆச்சு':'Rejected'));renderAdmin();}catch(e){toast(t('err'));}}
@@ -778,13 +930,26 @@ function showSheet(){document.getElementById('sheet').classList.add('show');}
 function closeSheet(){document.getElementById('sheet').classList.remove('show');}
 document.getElementById('sheet').addEventListener('click',e=>{if(e.target.id==='sheet')closeSheet();});
 
-function initLogin(){
+async function initLogin(){
   applyLoginLabels();
   // One-time login: if a saved session exists, go straight into the app (no OTP again)
   const s=getSession();
   if(s&&s.role==='cust'&&s.phone){CUST_PHONE='cust-'+s.phone;CURRENT={role:'cust',name:s.name};enter('cust','👤 '+(s.name||'Customer'));return;}
   if(s&&s.role==='cook'&&s.cookId){LOGGED_COOK=s.cookId;CURRENT={role:'cook',name:s.name};enter('cook','👩‍🍳 '+(s.name||'Cook'));return;}
   if(s&&s.role==='rider'&&s.phone){RIDER={name:s.name,phone:s.phone};CURRENT={role:'rider',name:s.name};enter('rider','🛵 '+(s.name||'Rider'));return;}
+  // Pending cook/rider: re-check approval on reopen -> show status directly (no restart, no OTP again)
+  if(s&&(s.role==='cook_pending'||s.role==='rider_pending')&&s.phone){
+    const role=s.role==='cook_pending'?'cook':'rider';
+    PENDING={role,phone:s.phone};
+    document.getElementById('roleChoice').classList.add('hide');
+    document.getElementById('loginForm').innerHTML=`<div class="loader" style="color:#fff"><div class="spin"></div>${lang==='ta'?'நிலையை சரிபார்க்கிறது...':'Checking status...'}</div>`;
+    try{
+      const acc=await api('/api/account?role='+role+'&phone='+encodeURIComponent(s.phone));
+      if(acc.exists&&acc.status==='approved'){clearSession();loginExisting(acc);return;}
+      if(acc.exists){pendingScreen(role,acc.status);return;}
+    }catch(e){}
+    pendingScreen(role,'pending');return;
+  }
   // Owner/admin login is HIDDEN from normal users. It appears only when the URL ends with #owner
   if(location.hash==='#owner'||location.hash==='#admin'){
     document.getElementById('login-sub').textContent = lang==='ta'?'உரிமையாளர் உள்நுழைவு 🛠️':'Owner login 🛠️';

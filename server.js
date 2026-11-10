@@ -51,6 +51,26 @@ async function sendApprovalEmail(to, name, role, approved) {
   } catch (e) { console.error('[email] error', e.message); }
 }
 
+// ---------- ROLE GUARD (one phone = one role) ----------
+// Returns the list of roles a phone is ALREADY registered under.
+function rolesForPhone(phone) {
+  const roles = [];
+  if (db.prepare('SELECT 1 FROM customers WHERE phone=?').get(phone)) roles.push('customer');
+  if (db.prepare('SELECT 1 FROM cooks WHERE phone=?').get(phone)) roles.push('cook');
+  if (db.prepare('SELECT 1 FROM riders WHERE phone=?').get(phone)) roles.push('rider');
+  return roles;
+}
+// If this phone is used by a DIFFERENT role, log an owner alert and return the clash.
+function roleClash(phone, wantRole, name) {
+  const others = rolesForPhone(phone).filter(r => r !== wantRole);
+  if (others.length) {
+    db.prepare('INSERT INTO owner_alerts (phone, attempted_role, existing_roles, name) VALUES (?,?,?,?)')
+      .run(phone, wantRole, others.join(','), name || '');
+    return others;
+  }
+  return null;
+}
+
 // ---------- COOKS ----------
 // List approved cooks (customer app home)
 app.get('/api/cooks', h((req, res) => {
@@ -58,9 +78,9 @@ app.get('/api/cooks', h((req, res) => {
   res.json(cooks);
 }));
 
-// One cook's available menu (customer app)
+// One cook's menu (customer app filters on client: available && !locked; cook sees all with flags)
 app.get('/api/cooks/:id/menu', h((req, res) => {
-  const items = db.prepare('SELECT id, name, description, price, veg, available FROM menu_items WHERE cook_id = ?').all(req.params.id);
+  const items = db.prepare('SELECT id, name, description, price, veg, available, locked, warned FROM menu_items WHERE cook_id = ?').all(req.params.id);
   res.json(items);
 }));
 
@@ -85,6 +105,16 @@ app.patch('/api/menu/:id', h((req, res) => {
 
 app.delete('/api/menu/:id', h((req, res) => {
   db.prepare('DELETE FROM menu_items WHERE id = ?').run(req.params.id);
+  res.json({ ok: true });
+}));
+
+// Owner warns / locks a dish (bad reviews). locked -> hidden from customers.
+app.patch('/api/menu/:id/flag', h((req, res) => {
+  const { locked, warned } = req.body;
+  const cur = db.prepare('SELECT * FROM menu_items WHERE id = ?').get(req.params.id);
+  if (!cur) return res.status(404).json({ error: 'not found' });
+  db.prepare('UPDATE menu_items SET locked=?, warned=? WHERE id=?')
+    .run(locked ?? cur.locked, warned ?? cur.warned, req.params.id);
   res.json({ ok: true });
 }));
 
@@ -202,6 +232,8 @@ app.get('/api/account', h((req, res) => {
 app.post('/api/customers', h((req, res) => {
   const { phone, name = '', email = '', addresses = [] } = req.body;
   if (!phone) return res.status(400).json({ error: 'phone required' });
+  const clash = roleClash(phone, 'customer', name);
+  if (clash) return res.status(409).json({ error: 'role_conflict', existingRoles: clash });
   const addrJson = JSON.stringify(Array.isArray(addresses) ? addresses : []);
   const existing = db.prepare('SELECT phone FROM customers WHERE phone=?').get(phone);
   if (existing) {
@@ -232,6 +264,8 @@ app.post('/api/cook-signup', h((req, res) => {
   const { name, phone, email = '', experience = '', fssai = '', fssai_doc = '', id_doc = '',
           area = 'Thiruvottiyur', veg = 1, address = '', lat = null, lng = null } = req.body;
   if (!name || !phone) return res.status(400).json({ error: 'name and phone required' });
+  const clashC = roleClash(phone, 'cook', name);
+  if (clashC) return res.status(409).json({ error: 'role_conflict', existingRoles: clashC });
   if (db.prepare('SELECT id FROM cooks WHERE phone=?').get(phone)) return res.status(409).json({ error: 'phone already registered' });
   const info = db.prepare(`INSERT INTO cooks (name, area, phone, fssai, veg, rating, approved, address, lat, lng, email, experience, fssai_doc, id_doc, status)
     VALUES (?,?,?,?,?,0,0,?,?,?,?,?,?,?,'pending')`)
@@ -244,6 +278,8 @@ app.post('/api/riders', h((req, res) => {
   const { name, phone, email = '', area = 'Thiruvottiyur', vehicle = '', license_number = '', license_doc = '',
           pan_number = '', pan_doc = '', bank_account = '', bank_ifsc = '' } = req.body;
   if (!name || !phone) return res.status(400).json({ error: 'name and phone required' });
+  const clashR = roleClash(phone, 'rider', name);
+  if (clashR) return res.status(409).json({ error: 'role_conflict', existingRoles: clashR });
   if (db.prepare('SELECT id FROM riders WHERE phone=?').get(phone)) return res.status(409).json({ error: 'phone already registered' });
   const info = db.prepare(`INSERT INTO riders (name, phone, email, area, vehicle, license_number, license_doc, pan_number, pan_doc, bank_account, bank_ifsc, status)
     VALUES (?,?,?,?,?,?,?,?,?,?,?,'pending')`)
@@ -272,6 +308,25 @@ app.patch('/api/riders/:id/approve', h((req, res) => {
   db.prepare('UPDATE riders SET status=? WHERE id=?').run(status, req.params.id);
   sendApprovalEmail(r.email, r.name, 'rider', decision === 'approve');
   res.json({ ok: true, status });
+}));
+
+// Owner: every cook with their full menu (incl. locked/warned) for quality control
+app.get('/api/admin/menus', h((req, res) => {
+  const cooks = db.prepare('SELECT id, name, phone, rating FROM cooks WHERE approved=1 ORDER BY id').all();
+  const out = cooks.map(c => ({
+    ...c,
+    items: db.prepare('SELECT id, name, price, veg, available, locked, warned FROM menu_items WHERE cook_id=?').all(c.id)
+  }));
+  res.json(out);
+}));
+
+// Owner: role-conflict alerts (same number tried a second role)
+app.get('/api/admin/alerts', h((req, res) => {
+  res.json(db.prepare('SELECT * FROM owner_alerts WHERE cleared=0 ORDER BY id DESC').all());
+}));
+app.patch('/api/admin/alerts/:id/clear', h((req, res) => {
+  db.prepare('UPDATE owner_alerts SET cleared=1 WHERE id=?').run(req.params.id);
+  res.json({ ok: true });
 }));
 
 app.get('/', (req, res) => res.json({ app: 'Amma Samayal API', status: 'running' }));
