@@ -16,7 +16,9 @@
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
   body{font-family:"Segoe UI",system-ui,"Noto Sans Tamil",Roboto,sans-serif;background:#0e2a1d;color:var(--ink);display:flex;flex-direction:column;align-items:center;padding-bottom:30px}
   /* login */
-  .login{position:fixed;inset:0;background:radial-gradient(120% 120% at 50% 0%,#1d7a4e 0%,#0f5131 45%,#072e1c 100%);z-index:90;display:flex;align-items:center;justify-content:center;padding:24px;overflow:auto}
+  .login{position:fixed;inset:0;background:radial-gradient(120% 120% at 50% 0%,#1d7a4e 0%,#0f5131 45%,#072e1c 100%);z-index:90;display:flex;align-items:center;justify-content:center;padding:24px;overflow:auto;transition:background .4s}
+  .login.owner-mode{background:radial-gradient(120% 120% at 50% 0%,#5b2e7a 0%,#2f1f49 45%,#140d20 100%)}
+  .login.owner-mode .logo{background:linear-gradient(135deg,#f0a81e,#d8830a)}
   .login input, .login textarea, .login select{text-align:left}
   .login label{color:#eafff3;opacity:.95;text-align:left}
   .signup-card{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);border-radius:16px;padding:14px;margin-top:6px;text-align:left}
@@ -312,6 +314,7 @@ function applyLoginLabels(){
 function chooseRole(r){
   const f=document.getElementById('loginForm');
   document.getElementById('roleChoice').classList.add('hide');
+  document.getElementById('loginScreen').classList.toggle('owner-mode', r==='admin');
   if(r==='customer'||r==='cook'||r==='rider'){
     PENDING={role:r,phone:''};SIGNUP_DOCS={};
     const title={customer:'🍽️ '+(lang==='ta'?'வாடிக்கையாளர்':'Customer'),cook:'👩‍🍳 '+(lang==='ta'?'சமையல் பார்ட்னர்':'Cook Partner'),rider:'🛵 '+(lang==='ta'?'டெலிவரி பார்ட்னர்':'Delivery Partner')}[r];
@@ -323,12 +326,17 @@ function chooseRole(r){
       <button class="rolebtn" style="background:rgba(255,255,255,.14);color:#fff;justify-content:center;border:1px solid rgba(255,255,255,.4);font-size:14px;margin-top:4px" onclick="goRegister()">🆕 ${lang==='ta'?'புதியவரா? இங்கே register பண்ணுங்க':'New here? Register now'}</button>`;
   } else {
     f.innerHTML=`<button class="lk" onclick="backRole()">←</button>
-      <input id="li-pass" type="password" placeholder="${lang==='ta'?'அட்மின் கடவுச்சொல்':'Admin passcode'}">
-      <p class="hint">demo passcode: 1234</p>
-      <button class="rolebtn solid" onclick="doAdmin()">${lang==='ta'?'உள்நுழை →':'Login →'}</button>`;
+      <div style="background:rgba(255,255,255,.07);border:1px solid rgba(240,168,30,.4);border-radius:18px;padding:22px 18px;margin-top:4px">
+        <div style="font-size:40px">🔐</div>
+        <div style="font-weight:800;font-size:18px;color:#f0b429;margin:6px 0 2px">${lang==='ta'?'உரிமையாளர் உள்நுழைவு':'Owner Login'}</div>
+        <div class="hint" style="color:#fff;opacity:.7;margin-bottom:14px">${lang==='ta'?'அட்மின் மட்டும் 🛠️':'Admins only 🛠️'}</div>
+        <input id="li-pass" type="password" placeholder="${lang==='ta'?'அட்மின் கடவுச்சொல்':'Admin passcode'}" style="text-align:center;letter-spacing:3px" onkeydown="if(event.key==='Enter')doAdmin()">
+        <button class="rolebtn solid" style="margin-top:10px" onclick="doAdmin()">${lang==='ta'?'உள்நுழை →':'Login →'}</button>
+        <p class="hint" style="margin-top:8px;opacity:.55">demo passcode: 1234</p>
+      </div>`;
   }
 }
-function backRole(){document.getElementById('loginForm').innerHTML='';document.getElementById('roleChoice').classList.remove('hide');}
+function backRole(){document.getElementById('loginForm').innerHTML='';document.getElementById('roleChoice').classList.remove('hide');document.getElementById('loginScreen').classList.remove('owner-mode');}
 /* secret owner entry: tap the pot logo 5 times (works inside the APK where there is no address bar) */
 let _oTap=0,_oTimer=null;
 function ownerTap(){
@@ -918,9 +926,8 @@ async function renderAdmin(){
   ADMIN={orders,reviews,cooks,riders,customers,pending,alerts,menus};
   const pc=pending.cooks||[],pr=pending.riders||[];const pendCount=pc.length+pr.length;
   const active=orders.filter(o=>o.status!=='delivered'&&o.status!=='rejected').length;
-  const nav=(k,ic,lbl,badge)=>`<div class="navi ${adminTab===k?'on':''}" onclick="adminTab='${k}';renderAdmin()"><span style="font-size:17px">${ic}</span> <span>${lbl}</span>${badge?`<span class="b">${badge}</span>`:''}</div>`;
-  const pages={dash:adminDash,orders:adminOrders,cooks:adminCooks,riders:adminRiders,customers:adminCustomers,approvals:adminApprovals,alerts:adminAlerts,reviews:adminReviews};
-  const page=(pages[adminTab]||adminDash)();
+  const nav=(k,ic,lbl,badge)=>`<div class="navi ${adminTab===k?'on':''}" data-k="${k}" onclick="adminNav('${k}')"><span style="font-size:17px">${ic}</span> <span>${lbl}</span>${badge?`<span class="b">${badge}</span>`:''}</div>`;
+  const page=adminPageHTML();
   document.getElementById('view').innerHTML=`
     <div class="top admin"><h1>🛠️ Amma Samayal — Owner</h1><div class="sub">${AL('நிர்வாக பலகை','Admin dashboard')}</div></div>
     <div class="adminwrap">
@@ -939,9 +946,22 @@ async function renderAdmin(){
           <button class="btn" style="background:#fff;color:var(--ink);border:1.5px solid var(--line)" onclick="renderAdmin()">🔄 ${AL('புதுப்பி','Refresh')}</button>
           <button class="btn" style="background:#fff;color:var(--red);border:1.5px solid var(--red)" onclick="resetTestData()">🧹 ${AL('Test data clear','Clear test data')}</button>
         </div>
-        ${page}
+        <div class="admin-page">${page}</div>
       </main>
     </div>`;
+}
+/* build only the right-side page HTML from cached ADMIN data */
+function adminPageHTML(){
+  const pages={dash:adminDash,orders:adminOrders,cooks:adminCooks,riders:adminRiders,customers:adminCustomers,approvals:adminApprovals,alerts:adminAlerts,reviews:adminReviews};
+  return (pages[adminTab]||adminDash)();
+}
+/* left nav click -> swap ONLY the right side, no full reload / no re-fetch */
+function adminNav(tab){
+  adminTab=tab;
+  document.querySelectorAll('.sidebar .navi').forEach(el=>el.classList.toggle('on',el.dataset.k===tab));
+  const p=document.querySelector('.admin-page');
+  if(p){p.innerHTML=adminPageHTML();p.scrollIntoView({block:'nearest'});}
+  else renderAdmin();
 }
 function adminTile(n,l,c){return `<div class="kpi" style="text-align:left;padding:16px"><b style="font-size:26px;color:${c||'inherit'}">${n}</b><small style="font-size:12px">${l}</small></div>`;}
 function adminDash(){
