@@ -172,8 +172,8 @@ let PENDING={role:null,phone:''};   // current login attempt
 let CUST_ADDRS=[];                   // logged-in customer's saved addresses
 let SIGNUP_DOCS={};                  // uploaded document URLs during signup
 /* Cloudinary (document photo upload) — filled once the user provides their account */
-const CLOUDINARY_CLOUD='';
-const CLOUDINARY_PRESET='';
+const CLOUDINARY_CLOUD='uvsvfutf';
+const CLOUDINARY_PRESET='amma_docs';
 /* ---- session persistence (one-time login) ---- */
 function saveSession(s){try{localStorage.setItem('amma_session',JSON.stringify(s));}catch(e){}}
 function clearSession(){try{localStorage.removeItem('amma_session');}catch(e){}}
