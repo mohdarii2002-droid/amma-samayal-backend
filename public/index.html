@@ -116,6 +116,15 @@
   .bnav .ic{font-size:20px;display:block;margin-bottom:2px}
   .bnav .pdot{display:inline-block;min-width:16px;height:16px;line-height:16px;background:var(--red);color:#fff;border-radius:9px;font-size:10px;font-weight:800;padding:0 4px;margin-left:3px}
   .hasnav .wrap{padding-bottom:78px}
+  /* OWNER web dashboard — wide layout (owner uses the browser, not the mobile app) */
+  body.web{background:#e7efe9}
+  body.web .appbar,body.web .live-banner{max-width:1180px}
+  body.web .phone{max-width:1180px;min-height:84vh;background:var(--bg)}
+  body.web .wrap{padding:20px 26px 48px;max-width:1180px;margin:0 auto}
+  body.web .top{border-radius:12px;margin-bottom:4px}
+  body.web .kpis{max-width:620px}
+  .agrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:12px;align-items:start}
+  body.web .sec-title{font-size:17px;margin-top:18px}
   .addon{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px dashed var(--line)}
   .notebox{width:100%;border:1.5px dashed var(--brand);border-radius:9px;padding:8px;font-size:12px;font-family:inherit;margin-top:6px;background:#f7fdf9}
 </style>
@@ -509,8 +518,8 @@ function signupDone(role){
 function doCook(id,name){LOGGED_COOK=id;CURRENT={role:'cook',name};saveSession({role:'cook',cookId:id,name});enter('cook','👩‍🍳 '+name);}
 function doRider(name,phone){RIDER={name,phone};CURRENT={role:'rider',name};saveSession({role:'rider',name,phone});enter('rider','🛵 '+name);}
 function doAdmin(){const p=(document.getElementById('li-pass').value||'').trim();if(p!=='1234'){toast(lang==='ta'?'தவறான கடவுச்சொல்':'Wrong passcode');return;}CURRENT={role:'admin',name:'Owner'};enter('admin','🛠️ Owner');}
-function enter(r,label){role=r;document.getElementById('loginScreen').classList.add('hide');document.getElementById('appbar').classList.remove('hide');document.getElementById('liveban').classList.remove('hide');document.getElementById('phoneWrap').classList.remove('hide');document.getElementById('ab-role').textContent=label;document.getElementById('lgl').textContent=lang.toUpperCase();document.getElementById('ab-logout').textContent=t('logout');document.getElementById('lbl-live').textContent=t('liveb');render();initAudio();startPolling();}
-function logout(){clearSession();stopPolling();CURRENT=null;LOGGED_COOK=null;CUST_PHONE=null;RIDER=null;custTab='foods';cookTab='orders';CUST_LOC={lat:null,lng:null};closeSheet();document.getElementById('phoneWrap').classList.remove('hasnav');document.getElementById('appbar').classList.add('hide');document.getElementById('liveban').classList.add('hide');document.getElementById('phoneWrap').classList.add('hide');document.getElementById('loginScreen').classList.remove('hide');backRole();}
+function enter(r,label){role=r;document.body.classList.toggle('web',r==='admin');document.getElementById('loginScreen').classList.add('hide');document.getElementById('appbar').classList.remove('hide');document.getElementById('liveban').classList.remove('hide');document.getElementById('phoneWrap').classList.remove('hide');document.getElementById('ab-role').textContent=label;document.getElementById('lgl').textContent=lang.toUpperCase();document.getElementById('ab-logout').textContent=t('logout');document.getElementById('lbl-live').textContent=t('liveb');render();initAudio();startPolling();}
+function logout(){clearSession();stopPolling();CURRENT=null;LOGGED_COOK=null;CUST_PHONE=null;RIDER=null;custTab='foods';cookTab='orders';CUST_LOC={lat:null,lng:null};closeSheet();document.body.classList.remove('web');document.getElementById('phoneWrap').classList.remove('hasnav');document.getElementById('appbar').classList.add('hide');document.getElementById('liveban').classList.add('hide');document.getElementById('phoneWrap').classList.add('hide');document.getElementById('loginScreen').classList.remove('hide');backRole();}
 
 function custStage(o){return o.status==='cooking'?1:(o.status==='ready'||o.status==='assigned')?2:o.status==='out'?3:o.status==='arrived'?4:o.status==='delivered'?5:0;}
 let role='cust';
@@ -901,26 +910,26 @@ async function renderAdmin(){
         <button class="btn" style="flex:1;background:#fff;color:var(--red);border:1.5px solid var(--red)" onclick="resetTestData()">🧹 ${lang==='ta'?'Test data clear':'Clear test data'}</button>
       </div>
       <div class="kpis"><div class="kpi"><b>${orders.length}</b><small>${lang==='ta'?'ஆர்டர்':'Orders'}</small></div><div class="kpi"><b style="color:${pendCount?'#b45309':'inherit'}">${pendCount}</b><small>${lang==='ta'?'Approval':'Pending'}</small></div><div class="kpi"><b>${cooks.length}</b><small>${lang==='ta'?'சமையல்':'Cooks'}</small></div></div>
-      ${alerts.length?`<div class="sec-title">🚨 ${lang==='ta'?'Number பிரச்சனை (ஒரே number, பல role)':'Number alerts (one number, many roles)'}</div>${alerts.map(a=>`<div class="card" style="border-left:4px solid var(--red)">
+      ${alerts.length?`<div class="sec-title">🚨 ${lang==='ta'?'Number பிரச்சனை (ஒரே number, பல role)':'Number alerts (one number, many roles)'}</div><div class="agrid">${alerts.map(a=>`<div class="card" style="border-left:4px solid var(--red)">
         <div style="display:flex;justify-content:space-between;align-items:center"><b>📞 ${a.phone}</b><span class="badge b-lock">⚠️ ${lang==='ta'?'மோதல்':'Conflict'}</span></div>
         <div class="meta" style="margin-top:4px">${a.name?a.name+' — ':''}${lang==='ta'?'முயற்சி':'Tried'}: <b>${a.attempted_role}</b> · ${lang==='ta'?'ஏற்கனவே':'Already'}: <b>${a.existing_roles}</b></div>
         <div class="meta" style="margin-top:2px">${a.created_at?'📅 '+fmtDate(a.created_at):''}</div>
         <div style="display:flex;gap:8px;margin-top:9px"><a class="btn" style="flex:1;text-decoration:none;text-align:center" href="tel:${a.phone}">📞 ${lang==='ta'?'அழை':'Call'}</a><button class="mini2" style="flex:1;padding:9px;background:#e5e7eb;color:#374151" onclick="clearAlert(${a.id})">✓ ${lang==='ta'?'சரி':'Clear'}</button></div>
-      </div>`).join('')}`:''}
-      ${pendCount?`<div class="sec-title">⏳ ${lang==='ta'?'Approval காத்திருக்கு':'Pending approvals'}</div>${pc.map(cookCard).join('')}${pr.map(riderCard).join('')}`:''}
+      </div>`).join('')}</div>`:''}
+      ${pendCount?`<div class="sec-title">⏳ ${lang==='ta'?'Approval காத்திருக்கு':'Pending approvals'}</div><div class="agrid">${pc.map(cookCard).join('')}${pr.map(riderCard).join('')}</div>`:''}
       <div class="sec-title">${t('live')}</div>
-      ${orders.length?orders.map(o=>`<div class="card" style="border-left:4px solid ${o.locked?'#b91c1c':o.status==='delivered'?'var(--accent)':'var(--blue)'}">
+      ${orders.length?`<div class="agrid">`+orders.map(o=>`<div class="card" style="border-left:4px solid ${o.locked?'#b91c1c':o.status==='delivered'?'var(--accent)':'var(--blue)'}">
         <div style="display:flex;justify-content:space-between;align-items:center"><div><b>#${o.id}</b> · ₹${o.total}</div><span class="badge ${o.locked?'b-lock':o.status==='new'?'b-new':o.status==='cooking'?'b-cook':o.status==='delivered'?'b-done':'b-out'}">${o.locked?'🔒 LOCK':o.status}</span></div>
         <div class="meta" style="margin-top:4px">👤 ${o.customer_name||'-'} · 📞 ${(o.customer_phone||'').replace('cust-','')||'-'}</div>
         <div class="meta">📍 ${o.customer_address||(lang==='ta'?'முகவரி இல்ல':'no address')}</div>
         <div class="meta">👩‍🍳 Cook #${o.cook_id}${o.rider_name?` · 🛵 ${o.rider_name} (${o.rider_phone})`:` · 🛵 ${lang==='ta'?'assign ஆகல':'no rider'}`}</div>
         <div class="meta">📅 ${fmtDate(o.created_at)||'-'}</div>
         <button class="mini2 ${o.locked?'unlockb':'lockb'}" style="margin-top:8px" onclick="toggleLock(${o.id},${o.locked?0:1})">${o.locked?t('unlock')+' Unlock':t('lock')+' Lock'}</button>
-      </div>`).join(''):`<div class="empty">${t('noord')}</div>`}
+      </div>`).join('')+`</div>`:`<div class="empty">${t('noord')}</div>`}
       <div class="sec-title">${t('reviews')}</div>
-      ${reviews.length?reviews.map(o=>{const bad=o.stars<=2;return `<div class="review ${bad?'bad':''}"><div style="display:flex;justify-content:space-between"><b style="font-size:13px">Cook #${o.cook_id} · Order #${o.id}</b><span style="color:var(--gold)">${'★'.repeat(o.stars)}${'☆'.repeat(5-o.stars)}</span></div>${o.remark?`<div style="font-size:13px;margin:5px 0">"${o.remark}"</div>`:''}${bad?`<span style="font-size:10px;font-weight:800;padding:2px 8px;border-radius:20px;background:#fee2e2;color:#b91c1c">🚩 ${lang==='ta'?'கவனம்':'Attention'}</span>`:''}</div>`;}).join(''):`<div class="empty">${lang==='ta'?'விமர்சனம் இல்லை':'No reviews yet'}</div>`}
+      ${reviews.length?`<div class="agrid">`+reviews.map(o=>{const bad=o.stars<=2;return `<div class="review ${bad?'bad':''}"><div style="display:flex;justify-content:space-between"><b style="font-size:13px">Cook #${o.cook_id} · Order #${o.id}</b><span style="color:var(--gold)">${'★'.repeat(o.stars)}${'☆'.repeat(5-o.stars)}</span></div>${o.remark?`<div style="font-size:13px;margin:5px 0">"${o.remark}"</div>`:''}${bad?`<span style="font-size:10px;font-weight:800;padding:2px 8px;border-radius:20px;background:#fee2e2;color:#b91c1c">🚩 ${lang==='ta'?'கவனம்':'Attention'}</span>`:''}</div>`;}).join('')+`</div>`:`<div class="empty">${lang==='ta'?'விமர்சனம் இல்லை':'No reviews yet'}</div>`}
       <div class="sec-title">🍲 ${lang==='ta'?'Cook மெனு + தரக் கட்டுப்பாடு':'Cook menus & quality'}</div>
-      ${menus.length?menus.map(c=>`<div class="card">
+      ${menus.length?`<div class="agrid">`+menus.map(c=>`<div class="card">
         <div style="display:flex;justify-content:space-between;align-items:center"><b>👩‍🍳 ${c.name}</b><span class="meta">★ ${c.rating} · 📞 ${c.phone||'-'}</span></div>
         ${c.items.length?c.items.map(m=>`<div style="border-top:1px solid var(--line);padding:8px 0;margin-top:6px">
           <div style="display:flex;justify-content:space-between;align-items:center"><div style="font-size:13px"><b><span class="veg ${m.veg?'':'non'}" style="margin-right:4px"></span>${m.name}</b> · ₹${m.price} ${m.locked?'<span class="badge b-lock">🔒 LOCK</span>':m.warned?'<span class="badge b-cook">⚠️ WARN</span>':m.available?'':'<span class="badge b-out">off</span>'}</div></div>
@@ -928,7 +937,7 @@ async function renderAdmin(){
             <button class="mini2" style="flex:1;padding:7px;background:#fef3c7;color:#92400e" onclick="flagDish(${m.id},'warn',${m.warned?0:1})">${m.warned?(lang==='ta'?'⚠️ எச்சரிக்கை நீக்கு':'⚠️ Un-warn'):(lang==='ta'?'⚠️ எச்சரி':'⚠️ Warn')}</button>
             <button class="mini2" style="flex:1;padding:7px;${m.locked?'background:#fde68a;color:#92400e':'background:#1f2937;color:#fff'}" onclick="flagDish(${m.id},'lock',${m.locked?0:1})">${m.locked?(lang==='ta'?'🔓 திற':'🔓 Unlock'):(lang==='ta'?'🔒 பூட்டு':'🔒 Lock')}</button>
           </div></div>`).join(''):`<div class="meta" style="margin-top:6px">${lang==='ta'?'மெனு இல்லை':'No dishes'}</div>`}
-      </div>`).join(''):`<div class="empty">${lang==='ta'?'Cook மெனு இல்லை':'No cook menus'}</div>`}
+      </div>`).join('')+`</div>`:`<div class="empty">${lang==='ta'?'Cook மெனு இல்லை':'No cook menus'}</div>`}
       <div class="sec-title">${t('allcooks')}</div>
       <div class="card" style="padding:6px"><table><tr><th>#</th><th>Name</th><th>★</th></tr>${cooks.map(c=>`<tr><td>${c.id}</td><td><b>${c.name}</b></td><td>★ ${c.rating}</td></tr>`).join('')}</table></div>
     </div>`;
