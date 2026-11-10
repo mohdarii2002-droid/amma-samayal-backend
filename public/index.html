@@ -125,6 +125,26 @@
   body.web .kpis{max-width:620px}
   .agrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:12px;align-items:start}
   body.web .sec-title{font-size:17px;margin-top:18px}
+  /* admin panel: sidebar + pages + data tables */
+  .adminwrap{display:flex;gap:16px;align-items:flex-start;padding:16px 18px 40px}
+  .sidebar{width:208px;flex-shrink:0;background:#111827;border-radius:14px;padding:10px;position:sticky;top:70px}
+  .sidebar .navi{display:flex;align-items:center;gap:9px;padding:11px 12px;border-radius:9px;color:#cbd5e1;font-size:13.5px;font-weight:700;cursor:pointer;margin-bottom:3px}
+  .sidebar .navi.on{background:var(--brand);color:#fff}
+  .sidebar .navi .b{margin-left:auto;background:var(--red);color:#fff;border-radius:10px;font-size:10px;font-weight:800;padding:1px 7px}
+  .adminmain{flex:1;min-width:0}
+  .ptitle{font-size:21px;font-weight:800;margin:2px 0 16px}
+  .dtable{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;font-size:13px;box-shadow:0 2px 8px rgba(0,0,0,.05)}
+  .dtable th{background:#f9fafb;text-align:left;padding:11px 12px;font-size:11px;color:#6b7280;border-bottom:1px solid var(--line);white-space:nowrap}
+  .dtable td{padding:11px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  .dtable tr:last-child td{border-bottom:none}
+  .pill{font-size:10px;font-weight:800;padding:3px 9px;border-radius:20px;white-space:nowrap}
+  @media(max-width:820px){
+    .adminwrap{flex-direction:column;padding:12px}
+    .sidebar{width:100%;position:static;display:flex;gap:6px;overflow-x:auto;padding:8px}
+    .sidebar .navi{flex-direction:column;gap:3px;font-size:10.5px;padding:8px 10px;white-space:nowrap;text-align:center}
+    .sidebar .navi .b{margin-left:4px}
+    .ptitle{font-size:18px}
+  }
   .addon{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px dashed var(--line)}
   .notebox{width:100%;border:1.5px dashed var(--brand);border-radius:9px;padding:8px;font-size:12px;font-family:inherit;margin-top:6px;background:#f7fdf9}
 </style>
@@ -880,68 +900,164 @@ async function acceptDelivery(id){
 async function riderAct(id,s){try{await api('/api/orders/'+id+'/status',{method:'PATCH',body:JSON.stringify({status:s})});toast('✓');renderRider();}catch(e){toast(t('err'));}}
 
 /* ============ ADMIN ============ */
+let adminTab='dash';
+let ADMIN={};
+const AL=(ta,en)=>lang==='ta'?ta:en;
 async function renderAdmin(){
   loading();
-  const [orders,reviews,cooks,pending,alerts,menus]=await Promise.all([api('/api/orders'),api('/api/reviews'),api('/api/cooks'),api('/api/admin/pending').catch(()=>({cooks:[],riders:[]})),api('/api/admin/alerts').catch(()=>[]),api('/api/admin/menus').catch(()=>[])]);
+  const [orders,reviews,cooks,riders,customers,pending,alerts,menus]=await Promise.all([
+    api('/api/orders'),api('/api/reviews'),api('/api/admin/cooks').catch(()=>[]),
+    api('/api/riders').catch(()=>[]),api('/api/admin/customers').catch(()=>[]),
+    api('/api/admin/pending').catch(()=>({cooks:[],riders:[]})),
+    api('/api/admin/alerts').catch(()=>[]),api('/api/admin/menus').catch(()=>[])
+  ]);
+  ADMIN={orders,reviews,cooks,riders,customers,pending,alerts,menus};
   const pc=pending.cooks||[],pr=pending.riders||[];const pendCount=pc.length+pr.length;
-  const docLink=(url,label)=>url?`<a href="${url}" target="_blank" style="color:var(--blue);font-weight:700">🖼️ ${label}</a>`:`<span style="color:var(--muted)">${label}: ${lang==='ta'?'படம் இல்ல':'no photo'}</span>`;
+  const active=orders.filter(o=>o.status!=='delivered'&&o.status!=='rejected').length;
+  const nav=(k,ic,lbl,badge)=>`<div class="navi ${adminTab===k?'on':''}" onclick="adminTab='${k}';renderAdmin()"><span style="font-size:17px">${ic}</span> <span>${lbl}</span>${badge?`<span class="b">${badge}</span>`:''}</div>`;
+  const pages={dash:adminDash,orders:adminOrders,cooks:adminCooks,riders:adminRiders,customers:adminCustomers,approvals:adminApprovals,alerts:adminAlerts,reviews:adminReviews};
+  const page=(pages[adminTab]||adminDash)();
+  document.getElementById('view').innerHTML=`
+    <div class="top admin"><h1>🛠️ Amma Samayal — Owner</h1><div class="sub">${AL('நிர்வாக பலகை','Admin dashboard')}</div></div>
+    <div class="adminwrap">
+      <aside class="sidebar">
+        ${nav('dash','📊',AL('டாஷ்போர்டு','Dashboard'),'')}
+        ${nav('orders','📦',AL('ஆர்டர்கள்','Orders'),active||'')}
+        ${nav('cooks','👩‍🍳',AL('சமையல்காரர்','Cooks'),'')}
+        ${nav('riders','🛵',AL('டெலிவரி','Delivery'),'')}
+        ${nav('customers','👥',AL('வாடிக்கையாளர்','Customers'),'')}
+        ${nav('approvals','⏳','Approvals',pendCount||'')}
+        ${nav('alerts','🚨','Alerts',alerts.length||'')}
+        ${nav('reviews','⭐',AL('விமர்சனம்','Reviews'),'')}
+      </aside>
+      <main class="adminmain">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:12px;gap:8px">
+          <button class="btn" style="background:#fff;color:var(--ink);border:1.5px solid var(--line)" onclick="renderAdmin()">🔄 ${AL('புதுப்பி','Refresh')}</button>
+          <button class="btn" style="background:#fff;color:var(--red);border:1.5px solid var(--red)" onclick="resetTestData()">🧹 ${AL('Test data clear','Clear test data')}</button>
+        </div>
+        ${page}
+      </main>
+    </div>`;
+}
+function adminTile(n,l,c){return `<div class="kpi" style="text-align:left;padding:16px"><b style="font-size:26px;color:${c||'inherit'}">${n}</b><small style="font-size:12px">${l}</small></div>`;}
+function adminDash(){
+  const {orders,cooks,riders,customers,pending}=ADMIN;
+  const pend=(pending.cooks||[]).length+(pending.riders||[]).length;
+  const rev=orders.filter(o=>o.status==='delivered').reduce((a,o)=>a+o.total,0);
+  const active=orders.filter(o=>o.status!=='delivered'&&o.status!=='rejected').length;
+  return `<div class="ptitle">📊 ${AL('கண்ணோட்டம்','Overview')}</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:22px">
+      ${adminTile(orders.length,AL('மொத்த ஆர்டர்','Total orders'))}
+      ${adminTile(active,AL('நடப்பு ஆர்டர்','Active'),'var(--blue)')}
+      ${adminTile('₹'+rev,AL('வருமானம்','Revenue'),'var(--accent)')}
+      ${adminTile(pend,AL('Approval பெண்டிங்','Pending'),pend?'#b45309':'')}
+      ${adminTile(cooks.length,AL('சமையல்காரர்','Cooks'))}
+      ${adminTile(riders.length,AL('டெலிவரி','Delivery'))}
+      ${adminTile(customers.length,AL('வாடிக்கையாளர்','Customers'))}
+    </div>
+    <div class="ptitle" style="font-size:16px">🕐 ${AL('சமீபத்திய ஆர்டர்','Recent orders')}</div>
+    ${orders.length?adminOrderTable(orders.slice(0,6)):`<div class="empty">${AL('ஆர்டர் இல்லை','No orders yet')}</div>`}`;
+}
+function adminOrderTable(list){
+  return `<div style="overflow-x:auto"><table class="dtable">
+    <tr><th>#</th><th>${AL('வாடிக்கையாளர்','Customer')}</th><th>Cook</th><th>${AL('தொகை','Total')}</th><th>Status</th><th>${AL('டெலிவரி','Rider')}</th><th></th></tr>
+    ${list.map(o=>`<tr>
+      <td><b>#${o.id}</b><div class="meta">${fmtDate(o.created_at)||''}</div></td>
+      <td>${o.customer_name||'-'}<div class="meta">${(o.customer_phone||'').replace('cust-','')}</div></td>
+      <td>Cook #${o.cook_id}</td>
+      <td><b>₹${o.total}</b></td>
+      <td><span class="pill ${o.locked?'b-lock':o.status==='new'?'b-new':o.status==='cooking'?'b-cook':o.status==='delivered'?'b-done':'b-out'}">${o.locked?'🔒 LOCK':o.status}</span></td>
+      <td>${o.rider_name?o.rider_name:`<span class="meta">${AL('இல்ல','none')}</span>`}</td>
+      <td><button class="mini2 ${o.locked?'unlockb':'lockb'}" onclick="toggleLock(${o.id},${o.locked?0:1})">${o.locked?'🔓':'🔒'}</button></td>
+    </tr>`).join('')}
+  </table></div>`;
+}
+function adminOrders(){
+  const {orders}=ADMIN;
+  return `<div class="ptitle">📦 ${AL('ஆர்டர்கள்','Orders')} (${orders.length})</div>
+    ${orders.length?adminOrderTable(orders):`<div class="empty">${AL('ஆர்டர் இல்லை','No orders yet')}</div>`}`;
+}
+function adminStatusPill(s){return s==='approved'?`<span class="pill b-done">✅ ${AL('சரி','Approved')}</span>`:s==='rejected'?`<span class="pill b-lock">❌ ${AL('நிராகரி','Rejected')}</span>`:`<span class="pill b-cook">⏳ ${AL('காத்திருக்கு','Pending')}</span>`;}
+function adminCooks(){
+  const {cooks,menus}=ADMIN;
+  return `<div class="ptitle">👩‍🍳 ${AL('சமையல்காரர்கள்','Cooks')} (${cooks.length})</div>
+    <div style="overflow-x:auto"><table class="dtable">
+      <tr><th>#</th><th>${AL('பெயர்','Name')}</th><th>${AL('தொலைபேசி','Phone')}</th><th>★</th><th>${AL('வகை','Type')}</th><th>Status</th></tr>
+      ${cooks.map(c=>`<tr><td>${c.id}</td><td><b>${c.name}</b><div class="meta">${c.email||''}</div></td><td>${c.phone||'-'}</td><td>★ ${c.rating||0}</td><td>${c.veg?'🟢 Veg':'🔴 Non-veg'}</td><td>${adminStatusPill(c.status||(c.approved?'approved':'pending'))}</td></tr>`).join('')}
+    </table></div>
+    <div class="ptitle" style="font-size:16px;margin-top:22px">🍲 ${AL('மெனு தரக் கட்டுப்பாடு','Menu quality control')}</div>
+    <div class="agrid">${menus.map(c=>`<div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center"><b>👩‍🍳 ${c.name}</b><span class="meta">★ ${c.rating}</span></div>
+      ${c.items.length?c.items.map(m=>`<div style="border-top:1px solid var(--line);padding:8px 0;margin-top:6px">
+        <div style="font-size:13px"><b><span class="veg ${m.veg?'':'non'}" style="margin-right:4px"></span>${m.name}</b> · ₹${m.price} ${m.locked?'<span class="pill b-lock">🔒 LOCK</span>':m.warned?'<span class="pill b-cook">⚠️ WARN</span>':''}</div>
+        <div style="display:flex;gap:6px;margin-top:7px">
+          <button class="mini2" style="flex:1;padding:7px;background:#fef3c7;color:#92400e" onclick="flagDish(${m.id},'warn',${m.warned?0:1})">${m.warned?'⚠️ '+AL('நீக்கு','Un-warn'):'⚠️ '+AL('எச்சரி','Warn')}</button>
+          <button class="mini2" style="flex:1;padding:7px;${m.locked?'background:#fde68a;color:#92400e':'background:#1f2937;color:#fff'}" onclick="flagDish(${m.id},'lock',${m.locked?0:1})">${m.locked?'🔓 '+AL('திற','Unlock'):'🔒 '+AL('பூட்டு','Lock')}</button>
+        </div></div>`).join(''):`<div class="meta" style="margin-top:6px">${AL('மெனு இல்லை','No dishes')}</div>`}
+    </div>`).join('')}</div>`;
+}
+function adminRiders(){
+  const {riders}=ADMIN;
+  const stp=s=>s==='approved'?`<span class="pill b-done">✅ ${AL('சரி','OK')}</span>`:s==='rejected'?`<span class="pill b-lock">❌</span>`:`<span class="pill b-out">⏳</span>`;
+  return `<div class="ptitle">🛵 ${AL('டெலிவரி பார்ட்னர்','Delivery Partners')} (${riders.length})</div>
+    <div style="overflow-x:auto"><table class="dtable">
+      <tr><th>#</th><th>${AL('பெயர்','Name')}</th><th>${AL('தொலைபேசி','Phone')}</th><th>${AL('வாகனம்','Vehicle')}</th><th>DL / PAN</th><th>Status</th><th></th></tr>
+      ${riders.map(r=>`<tr><td>${r.id}</td><td><b>${r.name}</b><div class="meta">${r.email||''}</div></td><td>${r.phone}</td><td>${r.vehicle||'-'}</td><td class="meta">${r.license_number||'-'}<br>${r.pan_number||'-'}</td><td>${stp(r.status)}</td>
+        <td>${r.status==='pending'?`<button class="btn" style="padding:6px 10px;font-size:11px" onclick="decideRider(${r.id},'approve')">✅</button> <button class="mini2" style="background:#fee2e2;color:var(--red);padding:6px 9px" onclick="decideRider(${r.id},'reject')">✕</button>`:''}</td></tr>`).join('')}
+    </table></div>`;
+}
+function adminCustomers(){
+  const {customers}=ADMIN;
+  return `<div class="ptitle">👥 ${AL('வாடிக்கையாளர்கள்','Customers')} (${customers.length})</div>
+    ${customers.length?`<div style="overflow-x:auto"><table class="dtable">
+      <tr><th>${AL('பெயர்','Name')}</th><th>${AL('தொலைபேசி','Phone')}</th><th>Email</th><th>${AL('முகவரி','Addr')}</th><th>${AL('சேர்ந்தது','Joined')}</th></tr>
+      ${customers.map(c=>`<tr><td><b>${c.name||'-'}</b></td><td>${c.phone}</td><td>${c.email||'-'}</td><td>${(c.addresses||[]).length}</td><td class="meta">${fmtDate(c.created_at)||''}</td></tr>`).join('')}
+    </table></div>`:`<div class="empty">${AL('வாடிக்கையாளர் இல்லை','No customers yet')}</div>`}`;
+}
+function adminDoc(url,label){return url?`<a href="${url}" target="_blank" style="color:var(--blue);font-weight:700">🖼️ ${label}</a>`:`<span style="color:var(--muted)">${label}: ${AL('படம் இல்ல','no photo')}</span>`;}
+function adminApprovals(){
+  const {pending}=ADMIN;const pc=pending.cooks||[],pr=pending.riders||[];
+  if(!pc.length&&!pr.length)return `<div class="ptitle">⏳ Approvals</div><div class="empty">${AL('Approval எதுவும் இல்லை ✅','Nothing pending ✅')}</div>`;
   const cookCard=c=>`<div class="card" style="border-left:4px solid var(--gold)">
-      <div style="display:flex;justify-content:space-between"><b>👩‍🍳 ${c.name}</b><span class="badge b-cook">⏳ ${lang==='ta'?'காத்திருக்கு':'Pending'}</span></div>
+      <div style="display:flex;justify-content:space-between"><b>👩‍🍳 ${c.name}</b><span class="pill b-cook">⏳ ${AL('காத்திருக்கு','Pending')}</span></div>
       <div class="meta" style="margin-top:4px">📞 ${c.phone} · ✉️ ${c.email||'-'}</div>
-      <div class="meta">🧑‍🍳 ${lang==='ta'?'அனுபவம்':'Exp'}: ${c.experience||'-'} · ${c.veg?'🟢 Veg':'🔴 Non-veg'}</div>
+      <div class="meta">🧑‍🍳 ${AL('அனுபவம்','Exp')}: ${c.experience||'-'} · ${c.veg?'🟢 Veg':'🔴 Non-veg'}</div>
       <div class="meta">🏠 ${c.address||'-'}</div>
       <div class="meta">🪪 FSSAI: ${c.fssai||'-'}</div>
-      <div class="meta" style="display:flex;gap:12px;margin-top:4px">${docLink(c.fssai_doc,'FSSAI')} ${docLink(c.id_doc,'ID')}</div>
-      <div style="display:flex;gap:8px;margin-top:10px"><button class="mini2" style="flex:1;padding:10px;background:#fee2e2;color:var(--red)" onclick="decideCook(${c.id},'reject')">${t('reject')}</button><button class="btn" style="flex:1" onclick="decideCook(${c.id},'approve')">✅ ${lang==='ta'?'Approve + Email':'Approve + Email'}</button></div>
+      <div class="meta" style="display:flex;gap:12px;margin-top:4px">${adminDoc(c.fssai_doc,'FSSAI')} ${adminDoc(c.id_doc,'ID')}</div>
+      <div style="display:flex;gap:8px;margin-top:10px"><button class="mini2" style="flex:1;padding:10px;background:#fee2e2;color:var(--red)" onclick="decideCook(${c.id},'reject')">${t('reject')}</button><button class="btn" style="flex:1" onclick="decideCook(${c.id},'approve')">✅ ${AL('Approve + Email','Approve + Email')}</button></div>
     </div>`;
   const riderCard=r=>`<div class="card" style="border-left:4px solid var(--blue)">
-      <div style="display:flex;justify-content:space-between"><b>🛵 ${r.name}</b><span class="badge b-out">⏳ ${lang==='ta'?'காத்திருக்கு':'Pending'}</span></div>
+      <div style="display:flex;justify-content:space-between"><b>🛵 ${r.name}</b><span class="pill b-out">⏳ ${AL('காத்திருக்கு','Pending')}</span></div>
       <div class="meta" style="margin-top:4px">📞 ${r.phone} · ✉️ ${r.email||'-'}</div>
       <div class="meta">🏍️ ${r.vehicle||'-'} · 🏦 ${r.bank_account||'-'} / ${r.bank_ifsc||'-'}</div>
       <div class="meta">🪪 DL: ${r.license_number||'-'} · PAN: ${r.pan_number||'-'}</div>
-      <div class="meta" style="display:flex;gap:12px;margin-top:4px">${docLink(r.license_doc,'License')} ${docLink(r.pan_doc,'PAN')}</div>
-      <div style="display:flex;gap:8px;margin-top:10px"><button class="mini2" style="flex:1;padding:10px;background:#fee2e2;color:var(--red)" onclick="decideRider(${r.id},'reject')">${t('reject')}</button><button class="btn" style="flex:1" onclick="decideRider(${r.id},'approve')">✅ ${lang==='ta'?'Approve + Email':'Approve + Email'}</button></div>
+      <div class="meta" style="display:flex;gap:12px;margin-top:4px">${adminDoc(r.license_doc,'License')} ${adminDoc(r.pan_doc,'PAN')}</div>
+      <div style="display:flex;gap:8px;margin-top:10px"><button class="mini2" style="flex:1;padding:10px;background:#fee2e2;color:var(--red)" onclick="decideRider(${r.id},'reject')">${t('reject')}</button><button class="btn" style="flex:1" onclick="decideRider(${r.id},'approve')">✅ ${AL('Approve + Email','Approve + Email')}</button></div>
     </div>`;
-  document.getElementById('view').innerHTML=`
-    <div class="top admin"><h1>${t('admintitle')}</h1><div class="sub">Owner · ${orders.length} ${lang==='ta'?'ஆர்டர்':'orders'} · ${pendCount} ${lang==='ta'?'approval':'to approve'}</div></div>
-    <div class="wrap">
-      <div style="display:flex;gap:8px;margin-bottom:12px">
-        <button class="btn" style="flex:1;background:#fff;color:var(--ink);border:1.5px solid var(--line)" onclick="renderAdmin()">🔄 Refresh</button>
-        <button class="btn" style="flex:1;background:#fff;color:var(--red);border:1.5px solid var(--red)" onclick="resetTestData()">🧹 ${lang==='ta'?'Test data clear':'Clear test data'}</button>
-      </div>
-      <div class="kpis"><div class="kpi"><b>${orders.length}</b><small>${lang==='ta'?'ஆர்டர்':'Orders'}</small></div><div class="kpi"><b style="color:${pendCount?'#b45309':'inherit'}">${pendCount}</b><small>${lang==='ta'?'Approval':'Pending'}</small></div><div class="kpi"><b>${cooks.length}</b><small>${lang==='ta'?'சமையல்':'Cooks'}</small></div></div>
-      ${alerts.length?`<div class="sec-title">🚨 ${lang==='ta'?'Number பிரச்சனை (ஒரே number, பல role)':'Number alerts (one number, many roles)'}</div><div class="agrid">${alerts.map(a=>`<div class="card" style="border-left:4px solid var(--red)">
-        <div style="display:flex;justify-content:space-between;align-items:center"><b>📞 ${a.phone}</b><span class="badge b-lock">⚠️ ${lang==='ta'?'மோதல்':'Conflict'}</span></div>
-        <div class="meta" style="margin-top:4px">${a.name?a.name+' — ':''}${lang==='ta'?'முயற்சி':'Tried'}: <b>${a.attempted_role}</b> · ${lang==='ta'?'ஏற்கனவே':'Already'}: <b>${a.existing_roles}</b></div>
-        <div class="meta" style="margin-top:2px">${a.created_at?'📅 '+fmtDate(a.created_at):''}</div>
-        <div style="display:flex;gap:8px;margin-top:9px"><a class="btn" style="flex:1;text-decoration:none;text-align:center" href="tel:${a.phone}">📞 ${lang==='ta'?'அழை':'Call'}</a><button class="mini2" style="flex:1;padding:9px;background:#e5e7eb;color:#374151" onclick="clearAlert(${a.id})">✓ ${lang==='ta'?'சரி':'Clear'}</button></div>
-      </div>`).join('')}</div>`:''}
-      ${pendCount?`<div class="sec-title">⏳ ${lang==='ta'?'Approval காத்திருக்கு':'Pending approvals'}</div><div class="agrid">${pc.map(cookCard).join('')}${pr.map(riderCard).join('')}</div>`:''}
-      <div class="sec-title">${t('live')}</div>
-      ${orders.length?`<div class="agrid">`+orders.map(o=>`<div class="card" style="border-left:4px solid ${o.locked?'#b91c1c':o.status==='delivered'?'var(--accent)':'var(--blue)'}">
-        <div style="display:flex;justify-content:space-between;align-items:center"><div><b>#${o.id}</b> · ₹${o.total}</div><span class="badge ${o.locked?'b-lock':o.status==='new'?'b-new':o.status==='cooking'?'b-cook':o.status==='delivered'?'b-done':'b-out'}">${o.locked?'🔒 LOCK':o.status}</span></div>
-        <div class="meta" style="margin-top:4px">👤 ${o.customer_name||'-'} · 📞 ${(o.customer_phone||'').replace('cust-','')||'-'}</div>
-        <div class="meta">📍 ${o.customer_address||(lang==='ta'?'முகவரி இல்ல':'no address')}</div>
-        <div class="meta">👩‍🍳 Cook #${o.cook_id}${o.rider_name?` · 🛵 ${o.rider_name} (${o.rider_phone})`:` · 🛵 ${lang==='ta'?'assign ஆகல':'no rider'}`}</div>
-        <div class="meta">📅 ${fmtDate(o.created_at)||'-'}</div>
-        <button class="mini2 ${o.locked?'unlockb':'lockb'}" style="margin-top:8px" onclick="toggleLock(${o.id},${o.locked?0:1})">${o.locked?t('unlock')+' Unlock':t('lock')+' Lock'}</button>
-      </div>`).join('')+`</div>`:`<div class="empty">${t('noord')}</div>`}
-      <div class="sec-title">${t('reviews')}</div>
-      ${reviews.length?`<div class="agrid">`+reviews.map(o=>{const bad=o.stars<=2;return `<div class="review ${bad?'bad':''}"><div style="display:flex;justify-content:space-between"><b style="font-size:13px">Cook #${o.cook_id} · Order #${o.id}</b><span style="color:var(--gold)">${'★'.repeat(o.stars)}${'☆'.repeat(5-o.stars)}</span></div>${o.remark?`<div style="font-size:13px;margin:5px 0">"${o.remark}"</div>`:''}${bad?`<span style="font-size:10px;font-weight:800;padding:2px 8px;border-radius:20px;background:#fee2e2;color:#b91c1c">🚩 ${lang==='ta'?'கவனம்':'Attention'}</span>`:''}</div>`;}).join('')+`</div>`:`<div class="empty">${lang==='ta'?'விமர்சனம் இல்லை':'No reviews yet'}</div>`}
-      <div class="sec-title">🍲 ${lang==='ta'?'Cook மெனு + தரக் கட்டுப்பாடு':'Cook menus & quality'}</div>
-      ${menus.length?`<div class="agrid">`+menus.map(c=>`<div class="card">
-        <div style="display:flex;justify-content:space-between;align-items:center"><b>👩‍🍳 ${c.name}</b><span class="meta">★ ${c.rating} · 📞 ${c.phone||'-'}</span></div>
-        ${c.items.length?c.items.map(m=>`<div style="border-top:1px solid var(--line);padding:8px 0;margin-top:6px">
-          <div style="display:flex;justify-content:space-between;align-items:center"><div style="font-size:13px"><b><span class="veg ${m.veg?'':'non'}" style="margin-right:4px"></span>${m.name}</b> · ₹${m.price} ${m.locked?'<span class="badge b-lock">🔒 LOCK</span>':m.warned?'<span class="badge b-cook">⚠️ WARN</span>':m.available?'':'<span class="badge b-out">off</span>'}</div></div>
-          <div style="display:flex;gap:6px;margin-top:7px">
-            <button class="mini2" style="flex:1;padding:7px;background:#fef3c7;color:#92400e" onclick="flagDish(${m.id},'warn',${m.warned?0:1})">${m.warned?(lang==='ta'?'⚠️ எச்சரிக்கை நீக்கு':'⚠️ Un-warn'):(lang==='ta'?'⚠️ எச்சரி':'⚠️ Warn')}</button>
-            <button class="mini2" style="flex:1;padding:7px;${m.locked?'background:#fde68a;color:#92400e':'background:#1f2937;color:#fff'}" onclick="flagDish(${m.id},'lock',${m.locked?0:1})">${m.locked?(lang==='ta'?'🔓 திற':'🔓 Unlock'):(lang==='ta'?'🔒 பூட்டு':'🔒 Lock')}</button>
-          </div></div>`).join(''):`<div class="meta" style="margin-top:6px">${lang==='ta'?'மெனு இல்லை':'No dishes'}</div>`}
-      </div>`).join('')+`</div>`:`<div class="empty">${lang==='ta'?'Cook மெனு இல்லை':'No cook menus'}</div>`}
-      <div class="sec-title">${t('allcooks')}</div>
-      <div class="card" style="padding:6px"><table><tr><th>#</th><th>Name</th><th>★</th></tr>${cooks.map(c=>`<tr><td>${c.id}</td><td><b>${c.name}</b></td><td>★ ${c.rating}</td></tr>`).join('')}</table></div>
-    </div>`;
+  return `<div class="ptitle">⏳ Approvals (${pc.length+pr.length})</div><div class="agrid">${pc.map(cookCard).join('')}${pr.map(riderCard).join('')}</div>`;
 }
+function adminAlerts(){
+  const {alerts}=ADMIN;
+  if(!alerts.length)return `<div class="ptitle">🚨 Alerts</div><div class="empty">${AL('Alert எதுவும் இல்லை','No alerts')}</div>`;
+  return `<div class="ptitle">🚨 ${AL('Number பிரச்சனை','Number alerts')} (${alerts.length})</div>
+    <div class="meta" style="margin-bottom:10px">${AL('ஒரே number-ஐ பல role-க்கு முயற்சி செய்தவர்கள். நேரடியா call பண்ணுங்க.','Same number tried a second role. Call them directly.')}</div>
+    <div class="agrid">${alerts.map(a=>`<div class="card" style="border-left:4px solid var(--red)">
+      <div style="display:flex;justify-content:space-between;align-items:center"><b>📞 ${a.phone}</b><span class="pill b-lock">⚠️ ${AL('மோதல்','Conflict')}</span></div>
+      <div class="meta" style="margin-top:4px">${a.name?a.name+' — ':''}${AL('முயற்சி','Tried')}: <b>${a.attempted_role}</b> · ${AL('ஏற்கனவே','Already')}: <b>${a.existing_roles}</b></div>
+      <div class="meta" style="margin-top:2px">${a.created_at?'📅 '+fmtDate(a.created_at):''}</div>
+      <div style="display:flex;gap:8px;margin-top:9px"><a class="btn" style="flex:1;text-decoration:none;text-align:center" href="tel:${a.phone}">📞 ${AL('அழை','Call')}</a><button class="mini2" style="flex:1;padding:9px;background:#e5e7eb;color:#374151" onclick="clearAlert(${a.id})">✓ ${AL('சரி','Clear')}</button></div>
+    </div>`).join('')}</div>`;
+}
+function adminReviews(){
+  const {reviews}=ADMIN;
+  if(!reviews.length)return `<div class="ptitle">⭐ ${AL('விமர்சனம்','Reviews')}</div><div class="empty">${AL('விமர்சனம் இல்லை','No reviews yet')}</div>`;
+  return `<div class="ptitle">⭐ ${AL('விமர்சனம்','Reviews')} (${reviews.length})</div>
+    <div class="agrid">${reviews.map(o=>{const bad=o.stars<=2;return `<div class="review ${bad?'bad':''}"><div style="display:flex;justify-content:space-between"><b style="font-size:13px">Cook #${o.cook_id} · Order #${o.id}</b><span style="color:var(--gold)">${'★'.repeat(o.stars)}${'☆'.repeat(5-o.stars)}</span></div>${o.remark?`<div style="font-size:13px;margin:5px 0">"${o.remark}"</div>`:''}${bad?`<span class="pill b-lock" style="background:#fee2e2;color:#b91c1c">🚩 ${AL('கவனம்','Attention')}</span>`:''}</div>`;}).join('')}</div>`;
+}
+async function toggleLock(id,v){try{await api('/api/orders/'+id+'/lock',{method:'PATCH',body:JSON.stringify({locked:v})});renderAdmin();}catch(e){toast(t('err'));}}
+async function decideCook(id,decision){try{await api('/api/cooks/'+id+'/approve',{method:'PATCH',body:JSON.stringify({decision})});toast(decision==='approve'?(lang==='ta'?'✅ Approve ஆச்சு, email அனுப்பப்பட்டது':'✅ Approved, email sent'):(lang==='ta'?'Reject ஆச்சு':'Rejected'));renderAdmin();}catch(e){toast(t('err'));}}
+async function decideRider(id,decision){try{await api('/api/riders/'+id+'/approve',{method:'PATCH',body:JSON.stringify({decision})});toast(decision==='approve'?(lang==='ta'?'✅ Approve ஆச்சு, email அனுப்பப்பட்டது':'✅ Approved, email sent'):(lang==='ta'?'Reject ஆச்சு':'Rejected'));renderAdmin();}catch(e){toast(t('err'));}}
 async function flagDish(id,kind,val){
   try{await api('/api/menu/'+id+'/flag',{method:'PATCH',body:JSON.stringify(kind==='lock'?{locked:val}:{warned:val})});
     toast(kind==='lock'?(val?(lang==='ta'?'🔒 பூட்டப்பட்டது':'Locked'):(lang==='ta'?'🔓 திறக்கப்பட்டது':'Unlocked')):(val?(lang==='ta'?'⚠️ எச்சரிக்கப்பட்டது':'Warned'):(lang==='ta'?'எச்சரிக்கை நீக்கப்பட்டது':'Un-warned')));renderAdmin();}
@@ -950,12 +1066,9 @@ async function flagDish(id,kind,val){
 async function clearAlert(id){try{await api('/api/admin/alerts/'+id+'/clear',{method:'PATCH'});renderAdmin();}catch(e){toast(t('err'));}}
 async function resetTestData(){
   if(!confirm(lang==='ta'?'எல்லா test data-வும் (orders, customers, cook/delivery signups) அழிக்கப்படும். Demo cooks மட்டும் மீதம். உறுதியா?':'All test data (orders, customers, cook/delivery signups) will be wiped. Only demo cooks remain. Sure?'))return;
-  try{await api('/api/admin/reset',{method:'POST'});toast(lang==='ta'?'🧹 Test data clear ஆச்சு':'🧹 Test data cleared');renderAdmin();}
+  try{await api('/api/admin/reset',{method:'POST'});toast(lang==='ta'?'🧹 Test data clear ஆச்சு':'🧹 Test data cleared');adminTab='dash';renderAdmin();}
   catch(e){toast(t('err'));}
 }
-async function toggleLock(id,v){try{await api('/api/orders/'+id+'/lock',{method:'PATCH',body:JSON.stringify({locked:v})});renderAdmin();}catch(e){toast(t('err'));}}
-async function decideCook(id,decision){try{await api('/api/cooks/'+id+'/approve',{method:'PATCH',body:JSON.stringify({decision})});toast(decision==='approve'?(lang==='ta'?'✅ Approve ஆச்சு, email அனுப்பப்பட்டது':'✅ Approved, email sent'):(lang==='ta'?'Reject ஆச்சு':'Rejected'));renderAdmin();}catch(e){toast(t('err'));}}
-async function decideRider(id,decision){try{await api('/api/riders/'+id+'/approve',{method:'PATCH',body:JSON.stringify({decision})});toast(decision==='approve'?(lang==='ta'?'✅ Approve ஆச்சு, email அனுப்பப்பட்டது':'✅ Approved, email sent'):(lang==='ta'?'Reject ஆச்சு':'Rejected'));renderAdmin();}catch(e){toast(t('err'));}}
 
 function showSheet(){document.getElementById('sheet').classList.add('show');}
 function closeSheet(){document.getElementById('sheet').classList.remove('show');}

@@ -320,6 +320,17 @@ app.get('/api/admin/menus', h((req, res) => {
   res.json(out);
 }));
 
+// Owner: all cooks (any status) for the Cooks page
+app.get('/api/admin/cooks', h((req, res) => {
+  res.json(db.prepare('SELECT * FROM cooks ORDER BY id DESC').all());
+}));
+
+// Owner: all customers for the Customers page
+app.get('/api/admin/customers', h((req, res) => {
+  const rows = db.prepare('SELECT phone, name, email, addresses_json, created_at FROM customers ORDER BY id DESC').all();
+  res.json(rows.map(c => ({ phone: c.phone, name: c.name, email: c.email, addresses: JSON.parse(c.addresses_json || '[]'), created_at: c.created_at })));
+}));
+
 // Owner: role-conflict alerts (same number tried a second role)
 app.get('/api/admin/alerts', h((req, res) => {
   res.json(db.prepare('SELECT * FROM owner_alerts WHERE cleared=0 ORDER BY id DESC').all());
