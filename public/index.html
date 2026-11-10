@@ -236,7 +236,7 @@ async function api(path, opts={}){
   const headers={};
   if(opts.body) headers['Content-Type']='application/json';
   const r=await fetch(API+path,{headers,...opts});
-  if(!r.ok) throw new Error((await r.json().catch(()=>({}))).error||('HTTP '+r.status));
+  if(!r.ok){const j=await r.json().catch(()=>({}));const err=new Error(j.error||('HTTP '+r.status));err.data=j;throw err;}
   return r.status===204?null:r.json();
 }
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200);}
@@ -459,13 +459,17 @@ async function submitCustomer(){
     CUST_PHONE='cust-'+PENDING.phone;CURRENT={role:'cust',name};CUST_ADDRS=addresses;
     saveSession({role:'cust',phone:PENDING.phone,name});
     enter('cust','👤 '+name);
-  }catch(e){if(/role_conflict/.test(e.message||'')){roleConflictMsg();return;}toast(t('err'));}
+  }catch(e){if(/role_conflict/.test(e.message||'')){roleConflictMsg(e.data&&e.data.existingRoles);return;}toast(t('err'));}
 }
-/* one number already used by another role -> owner alerted */
-function roleConflictMsg(){
+/* one number already used by another role -> owner alerted. roles = ['customer'|'cook'|'rider'] */
+const ROLE_NAME={customer:{ta:'வாடிக்கையாளர் (Customer)',en:'Customer'},cook:{ta:'சமையல் பார்ட்னர் (Cook)',en:'Cook Partner'},rider:{ta:'டெலிவரி பார்ட்னர் (Delivery)',en:'Delivery Partner'}};
+function roleConflictMsg(roles){
+  const list=(roles&&roles.length?roles:[]).map(r=>(ROLE_NAME[r]?ROLE_NAME[r][lang]:r));
+  const roleLine=list.length?list.join(', '):(lang==='ta'?'வேற role':'another role');
   document.getElementById('loginForm').innerHTML=`<div style="background:rgba(255,255,255,.14);border-radius:16px;padding:20px;text-align:center;color:#fff">
     <div style="font-size:42px">⚠️</div>
-    <h3 style="margin:10px 0 6px">${lang==='ta'?'இந்த number வேற role-ல உள்ளது':'Number already used'}</h3>
+    <h3 style="margin:10px 0 6px">${lang==='ta'?'இந்த number ஏற்கனவே உள்ளது':'Number already used'}</h3>
+    <div style="background:rgba(0,0,0,.18);border-radius:12px;padding:12px;margin:10px 0;font-size:14px;font-weight:800;color:#ffe08a">${lang==='ta'?'இந்த role-ல ஏற்கனவே register ஆகியுள்ளது:':'Already registered as:'}<br><span style="font-size:15px;color:#fff">📌 ${roleLine}</span></div>
     <div style="font-size:13px;opacity:.92;line-height:1.5">${lang==='ta'?'ஒரே மொபைல் number-ஐ ஒரு role-க்கு மட்டும்தான் பயன்படுத்த முடியும். Owner-க்கு அறிவிப்பு போயிடுச்சு — அவங்க உங்களை நேரடியா call பண்ணி கேட்பாங்க. 📞':'One mobile number can be used for only one role. The owner has been alerted and will call you directly. 📞'}</div>
     <button class="rolebtn solid" style="margin-top:14px" onclick="backRole()">${lang==='ta'?'சரி':'OK'}</button>
   </div>`;
@@ -475,14 +479,14 @@ async function submitCook(){
   if(!name||!email){toast(lang==='ta'?'பெயர் & email கொடுங்க':'Name & email needed');return;}
   const body={name,phone:PENDING.phone,email,experience:(document.getElementById('su-exp').value||'').trim(),fssai:(document.getElementById('su-fssai').value||'').trim(),fssai_doc:SIGNUP_DOCS.fssai_doc||'',id_doc:SIGNUP_DOCS.id_doc||'',address:(document.getElementById('su-addr').value||'').trim(),lat:custAddr.lat,lng:custAddr.lng,veg:SU_VEG?1:0};
   try{await api('/api/cook-signup',{method:'POST',body:JSON.stringify(body)});saveSession({role:'cook_pending',phone:PENDING.phone,name});signupDone('cook');}
-  catch(e){if(/role_conflict/.test(e.message||'')){roleConflictMsg();return;}toast(/registered/.test(e.message||'')?(lang==='ta'?'இந்த number ஏற்கனவே உள்ளது':'Phone already registered'):t('err'));}
+  catch(e){if(/role_conflict/.test(e.message||'')){roleConflictMsg(e.data&&e.data.existingRoles);return;}toast(/registered/.test(e.message||'')?(lang==='ta'?'இந்த number ஏற்கனவே உள்ளது':'Phone already registered'):t('err'));}
 }
 async function submitRider(){
   const name=(document.getElementById('su-name').value||'').trim();const email=(document.getElementById('su-email').value||'').trim();
   if(!name||!email){toast(lang==='ta'?'பெயர் & email கொடுங்க':'Name & email needed');return;}
   const body={name,phone:PENDING.phone,email,vehicle:(document.getElementById('su-vehicle').value||'').trim(),license_number:(document.getElementById('su-lic').value||'').trim(),license_doc:SIGNUP_DOCS.license_doc||'',pan_number:(document.getElementById('su-pan').value||'').trim(),pan_doc:SIGNUP_DOCS.pan_doc||'',bank_account:(document.getElementById('su-bank').value||'').trim(),bank_ifsc:(document.getElementById('su-ifsc').value||'').trim()};
   try{await api('/api/riders',{method:'POST',body:JSON.stringify(body)});saveSession({role:'rider_pending',phone:PENDING.phone,name});signupDone('rider');}
-  catch(e){if(/role_conflict/.test(e.message||'')){roleConflictMsg();return;}toast(/registered/.test(e.message||'')?(lang==='ta'?'இந்த number ஏற்கனவே உள்ளது':'Phone already registered'):t('err'));}
+  catch(e){if(/role_conflict/.test(e.message||'')){roleConflictMsg(e.data&&e.data.existingRoles);return;}toast(/registered/.test(e.message||'')?(lang==='ta'?'இந்த number ஏற்கனவே உள்ளது':'Phone already registered'):t('err'));}
 }
 function signupDone(role){
   document.getElementById('loginForm').innerHTML=`<div style="background:rgba(255,255,255,.14);border-radius:16px;padding:22px;text-align:center;color:#fff">
