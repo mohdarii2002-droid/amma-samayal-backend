@@ -435,23 +435,27 @@ function pendingScreen(role,status){
 }
 /* ---- document photo upload (Cloudinary) ---- */
 let SU_VEG=true;
+let DOC_PICK={};  // statusId -> which input (gallery or camera) holds the chosen photo
 function docRow(labelTxt,fileId,statusId,storeKey){
-  // no "capture" -> phone shows Gallery / Camera / Files chooser (gallery upload works)
+  const camId=fileId+'c';
   return `<label style="margin-top:8px">${labelTxt}</label>
-    <div style="display:flex;gap:8px;align-items:center">
-      <button class="rolebtn" type="button" style="flex:1;background:#fff;color:var(--ink);justify-content:center;font-size:13px;padding:11px;margin:0;border:1.5px dashed var(--brand)" onclick="document.getElementById('${fileId}').click()">📁 ${lang==='ta'?'படம் தேர்வு (gallery)':'Choose photo (gallery)'}</button>
+    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+      <button class="rolebtn" type="button" style="flex:1;min-width:110px;background:#fff;color:var(--ink);justify-content:center;font-size:12.5px;padding:10px;margin:0;border:1.5px dashed var(--brand)" onclick="document.getElementById('${fileId}').click()">📁 Gallery</button>
+      <button class="rolebtn" type="button" style="flex:1;min-width:110px;background:#fff;color:var(--ink);justify-content:center;font-size:12.5px;padding:10px;margin:0;border:1.5px dashed var(--brand)" onclick="document.getElementById('${camId}').click()">📷 ${lang==='ta'?'படம் எடு':'Camera'}</button>
       <input id="${fileId}" type="file" accept="image/*" onchange="docPicked('${fileId}','${statusId}')" style="display:none">
-      <button class="addmini" type="button" onclick="uploadDoc('${fileId}','${statusId}','${storeKey}')">⬆️ ${lang==='ta'?'ஏற்று':'Upload'}</button>
+      <input id="${camId}" type="file" accept="image/*" capture="environment" onchange="docPicked('${camId}','${statusId}')" style="display:none">
+      <button class="addmini" type="button" style="min-width:92px" onclick="uploadDoc('${statusId}','${storeKey}')">⬆️ ${lang==='ta'?'ஏற்று':'Upload'}</button>
     </div>
     <div class="hint" id="${statusId}" style="color:#fff;opacity:.95;margin-top:3px">${SIGNUP_DOCS[storeKey]?'✅ '+(lang==='ta'?'பதிவேற்றப்பட்டது':'Uploaded'):''}</div>`;
 }
-/* show the chosen file name so the box is never "empty" */
-function docPicked(fileId,statusId){
-  const el=document.getElementById(fileId);const f=el&&el.files&&el.files[0];const s=document.getElementById(statusId);
-  if(f&&s)s.textContent='📎 '+f.name+' — '+(lang==='ta'?'⬆️ Upload அழுத்துங்க':'press Upload ⬆️');
+/* remember which input was used + show the chosen file name so the box is never "empty" */
+function docPicked(inputId,statusId){
+  const el=document.getElementById(inputId);const f=el&&el.files&&el.files[0];const s=document.getElementById(statusId);
+  if(f){DOC_PICK[statusId]=inputId;if(s)s.textContent='📎 '+f.name+' — '+(lang==='ta'?'⬆️ Upload அழுத்துங்க':'press Upload ⬆️');}
 }
-async function uploadDoc(fileId,statusId,storeKey){
-  const el=document.getElementById(fileId);const f=el&&el.files&&el.files[0];const s=document.getElementById(statusId);
+async function uploadDoc(statusId,storeKey){
+  const fileId=DOC_PICK[statusId];
+  const el=fileId?document.getElementById(fileId):null;const f=el&&el.files&&el.files[0];const s=document.getElementById(statusId);
   if(!f){if(s)s.textContent=lang==='ta'?'முதல்ல படம் தேர்ந்தெடு':'Pick a photo first';return;}
   if(!CLOUDINARY_CLOUD||!CLOUDINARY_PRESET){if(s)s.textContent='⚠️ '+(lang==='ta'?'Photo upload innum setup ஆகல':'Photo upload not configured yet');SIGNUP_DOCS[storeKey]='';return;}
   if(s)s.textContent='⏳ '+f.name+' — '+(lang==='ta'?'பதிவேற்றுகிறது...':'Uploading...');
