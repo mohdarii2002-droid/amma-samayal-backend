@@ -436,22 +436,29 @@ function pendingScreen(role,status){
 /* ---- document photo upload (Cloudinary) ---- */
 let SU_VEG=true;
 function docRow(labelTxt,fileId,statusId,storeKey){
+  // no "capture" -> phone shows Gallery / Camera / Files chooser (gallery upload works)
   return `<label style="margin-top:8px">${labelTxt}</label>
     <div style="display:flex;gap:8px;align-items:center">
-      <input id="${fileId}" type="file" accept="image/*" capture="environment" style="flex:1;font-size:11px;background:#fff;padding:7px">
-      <button class="addmini" type="button" onclick="uploadDoc('${fileId}','${statusId}','${storeKey}')">⬆️</button>
+      <button class="rolebtn" type="button" style="flex:1;background:#fff;color:var(--ink);justify-content:center;font-size:13px;padding:11px;margin:0;border:1.5px dashed var(--brand)" onclick="document.getElementById('${fileId}').click()">📁 ${lang==='ta'?'படம் தேர்வு (gallery)':'Choose photo (gallery)'}</button>
+      <input id="${fileId}" type="file" accept="image/*" onchange="docPicked('${fileId}','${statusId}')" style="display:none">
+      <button class="addmini" type="button" onclick="uploadDoc('${fileId}','${statusId}','${storeKey}')">⬆️ ${lang==='ta'?'ஏற்று':'Upload'}</button>
     </div>
-    <div class="hint" id="${statusId}" style="color:#dff;opacity:.95">${SIGNUP_DOCS[storeKey]?'✅ '+(lang==='ta'?'பதிவேற்றப்பட்டது':'Uploaded'):''}</div>`;
+    <div class="hint" id="${statusId}" style="color:#fff;opacity:.95;margin-top:3px">${SIGNUP_DOCS[storeKey]?'✅ '+(lang==='ta'?'பதிவேற்றப்பட்டது':'Uploaded'):''}</div>`;
+}
+/* show the chosen file name so the box is never "empty" */
+function docPicked(fileId,statusId){
+  const el=document.getElementById(fileId);const f=el&&el.files&&el.files[0];const s=document.getElementById(statusId);
+  if(f&&s)s.textContent='📎 '+f.name+' — '+(lang==='ta'?'⬆️ Upload அழுத்துங்க':'press Upload ⬆️');
 }
 async function uploadDoc(fileId,statusId,storeKey){
   const el=document.getElementById(fileId);const f=el&&el.files&&el.files[0];const s=document.getElementById(statusId);
   if(!f){if(s)s.textContent=lang==='ta'?'முதல்ல படம் தேர்ந்தெடு':'Pick a photo first';return;}
   if(!CLOUDINARY_CLOUD||!CLOUDINARY_PRESET){if(s)s.textContent='⚠️ '+(lang==='ta'?'Photo upload innum setup ஆகல':'Photo upload not configured yet');SIGNUP_DOCS[storeKey]='';return;}
-  if(s)s.textContent=lang==='ta'?'பதிவேற்றுகிறது...':'Uploading...';
+  if(s)s.textContent='⏳ '+f.name+' — '+(lang==='ta'?'பதிவேற்றுகிறது...':'Uploading...');
   try{
     const fd=new FormData();fd.append('file',f);fd.append('upload_preset',CLOUDINARY_PRESET);
     const r=await fetch('https://api.cloudinary.com/v1_1/'+CLOUDINARY_CLOUD+'/auto/upload',{method:'POST',body:fd});
-    const j=await r.json();if(j.secure_url){SIGNUP_DOCS[storeKey]=j.secure_url;if(s)s.textContent='✅ '+(lang==='ta'?'பதிவேற்றப்பட்டது':'Uploaded');}else throw new Error('fail');
+    const j=await r.json();if(j.secure_url){SIGNUP_DOCS[storeKey]=j.secure_url;if(s)s.textContent='✅ '+(lang==='ta'?'பதிவேற்றப்பட்டது':'Uploaded')+': '+f.name;}else throw new Error('fail');
   }catch(e){if(s)s.textContent='⚠️ '+(lang==='ta'?'பதிவேற்ற முடியல':'Upload failed');}
 }
 /* ---- signup forms (new users) ---- */
